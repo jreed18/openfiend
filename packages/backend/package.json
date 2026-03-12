@@ -1,0 +1,35 @@
+{
+  "name": "@openfiend/backend",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.46",
+    "@ai-sdk/openai": "latest",
+    "@openfiend/shared": "workspace:*",
+    "ai": "^6.0.97",
+    "ai-sdk-ollama": "^3.8.0",
+    "better-sqlite3": "latest",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "latest",
+    "express": "latest",
+    "express-ws": "latest",
+    "wscat": "^6.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest",
+    "@types/express": "latest",
+    "@types/express-ws": "latest",
+    "@types/node": "latest",
+    "drizzle-kit": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

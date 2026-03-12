@@ -137,3 +137,27 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Environment
+.env.local
+.env.*.local
+
+# PM2 local files
+.pm2/
+logs/
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Local development
+skills/
+skills-lock.json
+docs/
+assets/

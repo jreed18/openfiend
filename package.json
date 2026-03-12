@@ -1,0 +1,26 @@
+{
+  "name": "openfiend",
+  "version": "0.1.0",
+  "description": "Open-source AI agent platform with security you can actually see",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "type-check": "pnpm -r run type-check",
+    "lint": "pnpm -r run lint",
+    "start:backend": "pnpm -C packages/backend start",
+    "start:daemon": "pm2 start ecosystem.config.js",
+    "daemon:stop": "pm2 stop all",
+    "daemon:restart": "pm2 restart all",
+    "daemon:logs": "pm2 logs",
+    "daemon:status": "pm2 status"
+  },
+  "devDependencies": {
+    "pm2": "^6.0.14"
+  },
+  "dependencies": {
+    "@types/uuid": "^11.0.0",
+    "uuid": "^13.0.0"
+  }
+}
