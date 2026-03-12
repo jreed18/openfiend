@@ -1,80 +1,189 @@
-# OPENFIEND
+<div align="center">
 
-**Open-source AI agent platform with security you can actually see.**
+```
+                    %%%%%%%%%%%%%%
+               %%%%%           %%%%%%%%
+            %%%%%                   %%%%%
+  %%%      %%%%%                      %%%%      %%
+  %%%%%  %%%                             %%%% %%%%
+  %%%%%%%%%%                              %%%%%%%%
+    %%%%%%                                 %%%%%
+     %%%%                                   %%%%
+     %%%%                                    %%%
+     %%%    %%%%%                %%%%         %%
+     %%    %%%%%%               %%%%%         %%%
+    %%%     %%%%%              %%%%%%          %%%
+   %%%      %%%%   %             %%            %%%
+   %%%            %%         %                 %%%
+  %%%         %%%%%%%%%%%%%%%%%%%%             %%%
+  %%%          %%    %%%%%%%%% %%%              %%
+  %%%                                           %%
+  %%%              @                            %%
+ %%%             %%####@%@@#####%               %%
+ %%%             @###%%%##%#####%               %%
+%%%               @@@@     %%##%               %%%
+%%%                                            %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+```
 
-Every action visible. Every permission explicit. No black boxes.
+<br>
 
-## What is this?
+# `O P E N F I E N D`
 
-OpenFiend is a security-first AI agent platform. The first agent — Bob — is a paranoid, audit-log-obsessed assistant powered by Claude. You talk to Bob through a real-time chat interface, and everything he does is logged and visible.
+### **NO BLACK BOXES. NO TRUST REQUIRED.**
 
-This is v0.1. It's early, it's messy, and it works.
+[![v0.1](https://img.shields.io/badge/version-0.1-e11d7e?style=flat-square&labelColor=0a0a0a)](https://github.com/jreed18/openfiend)
+[![License](https://img.shields.io/badge/license-TBD-f97316?style=flat-square&labelColor=0a0a0a)](.)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-e11d7e?style=flat-square&labelColor=0a0a0a)](.)
+[![Open Source](https://img.shields.io/badge/open_source-day_one-f97316?style=flat-square&labelColor=0a0a0a)](.)
 
-## Quick Start
+---
+
+**Security-first AI agent platform.**<br>
+**Every action visible. Every permission explicit. Everything auditable.**
+
+</div>
+
+---
+
+<br>
+
+## `> WHAT IS THIS`
+
+OpenFiend is an AI agent platform where **transparency isn't a feature — it's the architecture.**
+
+The first agent — **Bob** — is a paranoid, audit-log-obsessed assistant powered by Claude. You talk to Bob through a real-time WebSocket chat interface. Everything he does is logged, visible, and controllable.
+
+```
+This is v0.1. It's early. It's messy. It works.
+```
+
+<br>
+
+## `> QUICK START`
 
 ```bash
+git clone https://github.com/jreed18/openfiend.git
+cd openfiend
+cp .env.example .env.local    # add your ANTHROPIC_API_KEY
 pnpm install
 pnpm dev
 ```
 
-Frontend: `localhost:5173` | Backend: `localhost:3737`
+| Service | URL |
+|:--|:--|
+| **Frontend** | `localhost:5173` |
+| **Backend** | `localhost:3737` |
+| **WebSocket** | `ws://localhost:3737/ws` |
 
-You'll need an `ANTHROPIC_API_KEY` in `.env.local` at the project root.
+> Requires **Node.js 22+** and **pnpm 9+**
 
-## Architecture
+<br>
+
+## `> ARCHITECTURE`
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        OPENFIEND                             │
+├──────────────┬────────────────────────┬──────────────────────┤
+│  LEFT RAIL   │     CENTER PANEL       │    RIGHT PANEL       │
+│              │                        │                       │
+│  conversation│     real-time chat     │    audit trail        │
+│  history     │     with agent         │    every. single.     │
+│              │                        │    action.            │
+│              │                        │                       │
+│              │                        │    ▸ llm_call         │
+│              │                        │    ▸ tool_invocation  │
+│              │                        │    ▸ permission_req   │
+├──────────────┴────────────────────────┴──────────────────────┤
+│                     WebSocket (ws://)                         │
+├──────────────────────────────────────────────────────────────┤
+│              Node.js + Express + Vercel AI SDK               │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ```
 openfiend/
 ├── packages/
-│   ├── backend/        # Node.js + Express + WebSocket server
-│   ├── frontend/       # React + Tailwind CSS (dark theme)
-│   └── shared/         # Shared types & Zod schemas
-├── ecosystem.config.js # PM2 daemon config
-└── package.json        # pnpm workspace root
+│   ├── backend/     # Node.js + Express + WebSocket
+│   ├── frontend/    # React + Tailwind (dark theme)
+│   └── shared/      # Zod schemas + shared types
+├── ecosystem.config.js
+└── pnpm-workspace.yaml
 ```
 
-**Stack:**
-- React + TypeScript + Tailwind CSS (frontend)
-- Node.js + Express + express-ws (backend)
-- Vercel AI SDK + Claude (agent)
-- WebSocket (real-time communication)
-- Zod (message validation)
+<br>
 
-## What works now (v0.1)
+## `> THE STACK`
 
-- Real-time chat with Bob via WebSocket
-- Conversational context (Bob remembers what you said)
-- Web search tool (Bob can look things up)
-- 3-panel layout (left rail, chat, audit trail)
-- Themed UI (magenta + orange on black)
+| Layer | Tech |
+|:--|:--|
+| **Agent** | Vercel AI SDK + Claude |
+| **Frontend** | React + TypeScript + Tailwind CSS |
+| **Backend** | Node.js + Express + express-ws |
+| **Protocol** | WebSocket (real-time, bidirectional) |
+| **Validation** | Zod (every message, both sides) |
+| **Design** | Brutalist dark — `#e11d7e` magenta / `#f97316` orange / `#0a0a0a` black |
 
-## What's coming (v1)
+<br>
 
-- **Audit trail** — live timeline of every LLM call, tool use, and permission request in the right panel
-- **Streaming responses** — word-by-word response rendering
-- **Permission system** — explicit approval dialogs before sensitive actions
-- **SQLite persistence** — conversation history and audit logs saved to disk
-- **More tools** — Playwright (web browsing), code execution, file operations
-- **Skill system** — sandboxed, manifest-based plugins
+## `> WHAT WORKS (v0.1)`
 
-## Security Philosophy
+- [x] Real-time chat with Bob via WebSocket
+- [x] Conversational context — Bob remembers what you said
+- [x] Web search tool — Bob can look things up
+- [x] 3-panel layout (history / chat / audit)
+- [x] Themed UI (magenta + orange on black)
+- [x] Zod-validated message protocol
 
-1. **Visible** — Every agent action logged and displayed
-2. **Explicit** — Permissions require user approval
-3. **Sandboxed** — Skills run isolated with declared capabilities only
-4. **Open** — Source code public from day one
+<br>
 
-## Requirements
+## `> WHAT'S COMING`
 
-- Node.js 22+
-- pnpm 9+
+- [ ] **Audit trail** — live timeline of every LLM call, tool use, and permission decision
+- [ ] **Streaming** — word-by-word response rendering
+- [ ] **Permission system** — explicit approval dialogs before sensitive actions
+- [ ] **SQLite persistence** — conversations and audit logs saved to disk
+- [ ] **More tools** — Playwright, code execution, file operations
+- [ ] **Skill system** — sandboxed, manifest-based plugins
 
-## License
+<br>
 
-TBD
+## `> SECURITY PHILOSOPHY`
 
-## Credits
+```
+ ╔═══════════════════════════════════════════════════╗
+ ║                                                   ║
+ ║   1. VISIBLE    — every agent action is logged    ║
+ ║   2. EXPLICIT   — permissions require approval    ║
+ ║   3. SANDBOXED  — skills run isolated             ║
+ ║   4. OPEN       — source code public, day one     ║
+ ║                                                   ║
+ ╚═══════════════════════════════════════════════════╝
+```
 
-Built by Jonah Reed.
+Most AI agents ask you to trust them. OpenFiend asks you to **watch.**
 
-openfiend.com
+<br>
+
+## `> CONTRIBUTING`
+
+This is early. Very very early. But if you're into transparent AI agents and want to help build something that doesn't hide what it's doing — [open an issue](https://github.com/jreed18/openfiend/issues).
+
+<br>
+
+---
+
+<div align="center">
+
+**Built by [Jonah Reed](https://github.com/jreed18)**
+
+`openfiend.com`
+
+<br>
+
+```
+"I logged that you read this README btw" — Bob
+```
+
+</div>
