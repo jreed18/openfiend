@@ -37,7 +37,7 @@ export function useWebSocket(): WebSocketContextType {
 export function WebSocketProvider({ children, url = `ws://${window.location.host}/ws` }: WebSocketProviderProps) {
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [auditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [conversations, setConversations] = useState<{ id: string, title: string }[]>([])
@@ -83,6 +83,8 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
           });
         } else if (parsedMessage.type === 'error') {
           console.error('Server error:', parsedMessage.message);
+        } else if (parsedMessage.type === 'audit_log') {
+          setAuditLogs(prev => [...prev, parsedMessage.entry])
         }
       } catch (err) {
         console.error('Failed to parse message:', err);

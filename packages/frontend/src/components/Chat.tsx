@@ -8,12 +8,18 @@ const GRAIN_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='h
 function Chat() {
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<string[]>([])
+  const [isWaiting, setIsWaiting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { messages, conversationId, send } = useWebSocket();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // When an agent_response arrives, stop waiting
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && 'type' in lastMsg && lastMsg.type === 'agent_response') {
+      setIsWaiting(false);
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -28,6 +34,7 @@ function Chat() {
     const chatHistory = [...chatMessages, message.trim()];
     send(message.trim(), conversationId);
     setChatMessages(chatHistory);
+    setIsWaiting(true);
 
     // clear input field
     setMessage('');
@@ -59,6 +66,15 @@ function Chat() {
           scrollbar-color: #e11d7e #0a0a0a;
           scrollbar-width: thin;
         }
+
+        /* Thinking pulse */
+        @keyframes thinking-pulse {
+          0%, 80%, 100% { opacity: 0.2; }
+          40% { opacity: 1; }
+        }
+        .thinking-dot:nth-child(1) { animation: thinking-pulse 1.4s 0s infinite; }
+        .thinking-dot:nth-child(2) { animation: thinking-pulse 1.4s 0.2s infinite; }
+        .thinking-dot:nth-child(3) { animation: thinking-pulse 1.4s 0.4s infinite; }
       `}</style>
 
       <div
@@ -108,29 +124,83 @@ function Chat() {
               </div>
             ) : (
               /* Messages list */
-              <div className="space-y-4">
+              <div className="mx-auto max-w-2xl space-y-5">
                 {messages
                   .filter((msg): msg is Extract<typeof msg, { content: string }> => 'content' in msg)
                   .map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`flex gap-4 ${msg.type === 'user_input' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex items-end gap-3 ${msg.type === 'user_input' ? 'justify-end' : 'justify-start'}`}
                   >
+                    {/* Bob avatar */}
+                    {msg.type !== 'user_input' && (
+                      <div
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px solid #333',
+                          color: '#f97316',
+                          fontFamily: "'Space Mono', monospace",
+                        }}
+                      >
+                        B
+                      </div>
+                    )}
                     <div
-                      className="max-w-md rounded px-4 py-3"
+                      className="max-w-lg rounded-lg px-4 py-3"
                       style={{
                         backgroundColor: msg.type === 'user_input' ? '#e11d7e' : '#1a1a1a',
-                        color: msg.type === 'user_input' ? '#fff' : '#e5e5e5',
-                        border: msg.type === 'user_input' ? 'none' : '1px solid #333',
+                        color: msg.type === 'user_input' ? '#fff' : '#d4d4d4',
+                        border: msg.type === 'user_input' ? 'none' : '1px solid #262626',
                         fontFamily: "'Space Mono', monospace",
-                        fontSize: '14px',
-                        lineHeight: '1.5',
+                        fontSize: '13px',
+                        lineHeight: '1.6',
                       }}
                     >
                       {msg.content}
                     </div>
+                    {/* You avatar */}
+                    {msg.type === 'user_input' && (
+                      <div
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase"
+                        style={{
+                          backgroundColor: '#e11d7e',
+                          color: '#0a0a0a',
+                          fontFamily: "'Space Mono', monospace",
+                        }}
+                      >
+                        U
+                      </div>
+                    )}
                   </div>
                 ))}
+                {/* Thinking indicator */}
+                {isWaiting && (
+                  <div className="flex items-end gap-3">
+                    <div
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase"
+                      style={{
+                        backgroundColor: '#1a1a1a',
+                        border: '1px solid #333',
+                        color: '#f97316',
+                        fontFamily: "'Space Mono', monospace",
+                      }}
+                    >
+                      B
+                    </div>
+                    <div
+                      className="flex gap-1.5 rounded-lg px-4 py-3"
+                      style={{
+                        backgroundColor: '#1a1a1a',
+                        border: '1px solid #262626',
+                      }}
+                    >
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: '#f97316' }} />
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: '#f97316' }} />
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: '#f97316' }} />
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -140,30 +210,34 @@ function Chat() {
           <div className="border-t border-neutral-800 px-8 py-5">
             <form onSubmit={handleSubmit} className="mx-auto max-w-2xl">
               <div
-                className="flex items-center border-b-2"
-                style={{ borderColor: '#e11d7e' }}
+                className="flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors focus-within:border-neutral-600"
+                style={{
+                  backgroundColor: '#111111',
+                  borderColor: '#262626',
+                }}
               >
                 <input
                   ref={inputRef}
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="say something..."
+                  placeholder="say something to bob..."
                   aria-label="Message input"
-                  className="flex-1 bg-transparent py-3 text-base text-white placeholder-neutral-600 outline-none"
+                  className="flex-1 bg-transparent text-sm text-white placeholder-neutral-600 outline-none"
                   style={{ fontFamily: "'Space Mono', monospace" }}
+                  disabled={isWaiting}
                 />
                 <button
                   type="submit"
-                  disabled={!message.trim()}
+                  disabled={!message.trim() || isWaiting}
                   aria-label="Send message"
-                  className="shrink-0 px-5 py-3 text-xs font-bold uppercase tracking-widest text-black transition-colors duration-150 hover:brightness-90 active:brightness-75 disabled:opacity-20"
+                  className="shrink-0 rounded px-5 py-2 text-xs font-bold uppercase tracking-widest text-black transition-all duration-150 hover:brightness-90 active:scale-95 disabled:opacity-20"
                   style={{
                     backgroundColor: '#f97316',
                     fontFamily: "'Syne', sans-serif",
                   }}
                 >
-                  Send
+                  {isWaiting ? '...' : 'Send'}
                 </button>
               </div>
             </form>

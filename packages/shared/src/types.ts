@@ -17,6 +17,17 @@ export const MessageSchema = z.union([
     content: z.string(),
     conversationId: z.string(),
   }),
+  z.object({
+    type: z.literal('audit_log'),
+    entry: z.object({
+      id: z.string(),
+      timestamp: z.number(),
+      eventType: z.string(),
+      conversationId: z.string(),
+      input: z.string(),
+      output: z.string(),
+    })
+  })
 ]);
 
 export type Message = z.infer<typeof MessageSchema>;

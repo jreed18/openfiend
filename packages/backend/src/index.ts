@@ -5,6 +5,7 @@ import { getStreamedResponse, getStreamedResponseFullHistory } from './orchestra
 import { Message } from '@openfiend/shared';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 const wsApp = expressWs(app).app;
@@ -73,7 +74,7 @@ wsApp.ws('/ws', (ws, _req) => {
         type: 'agent_response',
         content: response.output,
         conversationId: conversationId,
-      })
+      });
 
       ws.send(JSON.stringify({
         type: 'agent_response',
@@ -81,6 +82,20 @@ wsApp.ws('/ws', (ws, _req) => {
         conversationId: conversationId,
         steps: response.steps,
       }));
+
+      for (const step of response.steps) {
+        ws.send(JSON.stringify({
+          type: 'audit_log',
+          entry: {
+            id: uuidv4(),
+            timestamp: Date.now(),
+            eventType: step.finishReason === 'tool-calls' ? 'tool_invocation' : 'llm_call',
+            conversationId,
+            input: step.stepContent.find(c => c.type === 'text')?.text,
+            output: step.stepContent,
+          }
+        }));
+      }
     } catch (error) {
         console.error(`Error: ${error}`);
         ws.send(JSON.stringify({
