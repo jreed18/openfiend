@@ -4,10 +4,13 @@ import { ToolLoopAgent } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { prompts } from './prompts';
 import '@backend/tools/tools';
+import { groq } from '@ai-sdk/groq';
 
 const envPath = join(import.meta.dirname, '../../../../.env.local');
 
 config({ path: envPath });
+
+const provider = process.env.LLM_PROVIDER;
 
 interface ResponseFormat {
     output: string,
@@ -20,7 +23,7 @@ interface ResponseFormat {
 
 export async function getStreamedResponse(prompt: string): Promise<ResponseFormat> {
     const agent = new ToolLoopAgent({
-        model: anthropic('claude-haiku-4-5'),
+        model: provider === 'anthropic' ? anthropic('claude-haiku-4-5') : groq('llama-3.1-8b-instant'),
         instructions: prompts.system,
         tools: {
             webSearch: anthropic.tools.webSearch_20250305(),
@@ -46,7 +49,7 @@ export async function getStreamedResponseFullHistory(
   chatHistory: Array<{ type: string; content: string; conversationId: string }>
 ): Promise<ResponseFormat> {
     const agent = new ToolLoopAgent({
-        model: anthropic('claude-haiku-4-5'),
+        model: provider === 'anthropic' ? anthropic('claude-haiku-4-5') : groq('llama-3.1-8b-instant'),
         instructions: prompts.system,
         tools: {
             webSearch: anthropic.tools.webSearch_20250305(),

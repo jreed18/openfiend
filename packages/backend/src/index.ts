@@ -3,10 +3,14 @@ import expressWs from 'express-ws';
 import { z } from 'zod';
 import { getStreamedResponse, getStreamedResponseFullHistory } from './orchestration/orchestrator';
 import { Message } from '@openfiend/shared';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const wsApp = expressWs(app).app;
 const conversations = new Map<string, Message[]>();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = process.env.PORT || 3737;
 
@@ -19,6 +23,11 @@ const UserInputSchema = z.object({
 
 // Middleware
 app.use(express.json());
+
+// serve frontend static files
+const frontendDistDir = path.join(__dirname, '../../frontend/dist');
+
+app.use(express.static(frontendDistDir));
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -88,6 +97,11 @@ wsApp.ws('/ws', (ws, _req) => {
   ws.on('error', (err) => {
     console.error('WebSocket error:', err);
   });
+});
+
+// SPA fallback — serve index.html for all non-API routes
+app.get('/{*splat}', (_req, res) => {
+  res.sendFile(path.join(frontendDistDir, 'index.html'));
 });
 
 // Error handling

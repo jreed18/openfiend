@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import { useState, useRef, useEffect } from 'react';
 import { useWebSocket } from '../context/WebSocketContext'
 import LeftRail from './LeftRail';
@@ -9,24 +8,13 @@ const GRAIN_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='h
 function Chat() {
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<string[]>([])
-  const [conversationId, setConversationId] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, send } = useWebSocket();
+  const { messages, conversationId, send } = useWebSocket();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  useEffect(() => {
-    console.log('useEffect: checking localStorage...');
-    const storedId = localStorage.getItem('conversation-id');
-    const id = storedId || uuidv4();
-    if (!storedId) {
-      localStorage.setItem('conversation-id', id);
-    }
-    setConversationId(id);
-  }, [])
 
   useEffect(() => {
     inputRef.current?.focus();
