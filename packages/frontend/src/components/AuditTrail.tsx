@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { AuditLogEntry } from "@openfiend/shared";
 import { useWebSocket } from "@frontend/context/WebSocketContext";
 
@@ -33,7 +34,10 @@ function AuditTrail() {
       case 'llm_call':
         return 'Bob thought about your message';
       case 'tool_invocation':
-        return 'Bob used a tool';
+        const toolInput = typeof log.input === 'string' ? log.input : '';
+        return toolInput ?
+          `Bob used a tool: "${toolInput.slice(0,50)}"`
+        : 'Bob used a tool';
       case 'tool_result':
         return 'Tool returned results';
       case 'permission_request':
@@ -41,7 +45,10 @@ function AuditTrail() {
       case 'permission_decision':
         return 'Permission was granted';
       case 'agent_response':
-        return 'Bob responded';
+        const responsePreview = typeof log.output === 'string' ? log.output : '';
+        return responsePreview ?
+          `Bob said: "${responsePreview.slice(0,40)}"`
+        : 'Bob responded';
       default:
         return log.eventType;
     }
@@ -77,10 +84,31 @@ function AuditTrail() {
           </p>
         ) : (
           <div className="flex flex-col gap-3">
-            {auditLogs.map((log) => {
+            {auditLogs.map((log, idx) => {
+              const prev = auditLogs[idx - 1];
+              const showDivider = prev && (log.timestamp - prev.timestamp > 5000)
               const event = getEventStyle(log.eventType);
+
               return (
-                <div
+                <Fragment key={log.id}>
+                 {showDivider && (
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="flex-1 border-t border-neutral-800" />
+                    <span style={{
+                      color: '#525252',
+                      fontFamily: "'Space Mono', monospace",
+                      fontSize: '9px',
+                    }}>
+                      new turn
+                    </span>
+                    <div className="flex-1 border-t border-neutral-800" />
+                  </div>
+                 )}
+                 <div
+                    className="border-1-2 pl-3 py-1"
+                    style={{ borderColor: event.bg }}
+                  >
+                    <div
                   key={log.id}
                   className="border-l-2 pl-3 py-1"
                   style={{ borderColor: event.bg }}
@@ -119,6 +147,8 @@ function AuditTrail() {
                     {getEventDescription(log)}
                   </p>
                 </div>
+                  </div>
+                </Fragment>
               );
             })}
           </div>
