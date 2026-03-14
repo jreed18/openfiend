@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "predev": "cd ../shared && pnpm build && cd ../frontend && pnpm build",
+    "predev": "mkdir -p .openfiend && drizzle-kit push",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
@@ -19,7 +19,7 @@
     "ai-sdk-ollama": "^3.8.0",
     "better-sqlite3": "latest",
     "dotenv": "^17.3.1",
-    "drizzle-orm": "latest",
+    "drizzle-orm": "^0.45.1",
     "express": "latest",
     "express-ws": "latest",
     "wscat": "^6.1.0",
@@ -30,7 +30,7 @@
     "@types/express": "latest",
     "@types/express-ws": "latest",
     "@types/node": "latest",
-    "drizzle-kit": "latest",
+    "drizzle-kit": "^0.31.9",
     "tsx": "latest",
     "typescript": "latest"
   }

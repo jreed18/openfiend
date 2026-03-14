@@ -1,15 +1,18 @@
 import express from 'express';
 import expressWs from 'express-ws';
 import { z } from 'zod';
-import { getStreamedResponse, getStreamedResponseFullHistory } from './orchestration/orchestrator';
-import { Message } from '@openfiend/shared';
+import { getStreamedResponseFullHistory } from './orchestration/orchestrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { db } from './db';
+import { messages as messagesTable, 
+  conversations as conversationsTable, 
+  auditLogs as auditLogsTable } from './db/schema';
+import { eq } from 'drizzle-orm';
 
 const app = express();
 const wsApp = expressWs(app).app;
-const conversations = new Map<string, Message[]>();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -47,16 +50,36 @@ wsApp.ws('/ws', (ws, _req) => {
       // TODO: Create context for LLM based on conversationId.
       const conversationId = parsedMessage.conversationId;
 
-      if (!conversations.has(conversationId)) {
-        conversations.set(conversationId, []);
+      const existingConversation = db.select().from(conversationsTable)
+      .where(eq(conversationsTable.id, conversationId))
+      .get();
+
+      if (!existingConversation) {
+        db.insert(conversationsTable).values({
+          id: conversationId,
+          title: parsedMessage.content.slice(0,40),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }).run();
       }
 
-      const history = conversations.get(conversationId)!;
-      history.push({
-        type: 'user_input',
-        content: parsedMessage.content,
+      db.insert(messagesTable).values({
+        id: uuidv4(),
         conversationId: conversationId,
-      })
+        role: 'user',
+        content: parsedMessage.content,
+        timestamp: Date.now(),
+      }).run();
+
+      // Load history
+      const history = db.select().from(messagesTable)
+      .where(eq(messagesTable.conversationId, conversationId))
+      .all()
+      .map(msg => ({
+        type: msg.role === 'user' ? ('user_input' as const) : ('agent_response' as const),
+        content: msg.content,
+        conversationId: conversationId,
+      }))
 
       // Echo user input back so frontend displays it
       ws.send(JSON.stringify({
@@ -70,11 +93,13 @@ wsApp.ws('/ws', (ws, _req) => {
       );
 
       // add response to history
-      history?.push({
-        type: 'agent_response',
-        content: response.output,
+      db.insert(messagesTable).values({
+        id: uuidv4(),
         conversationId: conversationId,
-      });
+        role: 'assistant',
+        content: response.output,
+        timestamp: Date.now(),
+      }).run();
 
       ws.send(JSON.stringify({
         type: 'agent_response',
@@ -84,15 +109,24 @@ wsApp.ws('/ws', (ws, _req) => {
       }));
 
       for (const step of response.steps) {
+        db.insert(auditLogsTable).values({
+          id: uuidv4(),
+          conversationId: conversationId,
+          eventType: step.finishReason === 'tool-calls' ? 'tool-invocation' : 'llm-call',
+          input: JSON.stringify(step.stepContent.find(c => c.type === 'text')?.text || ''),
+          output: JSON.stringify(step.stepContent),
+          timestamp: Date.now(),
+        }).run();
+
         ws.send(JSON.stringify({
           type: 'audit_log',
           entry: {
             id: uuidv4(),
             timestamp: Date.now(),
-            eventType: step.finishReason === 'tool-calls' ? 'tool_invocation' : 'llm_call',
+            eventType: step.finishReason === 'tool-calls' ? 'tool-invocation': 'llm-call',
             conversationId,
-            input: step.stepContent.find(c => c.type === 'text')?.text,
-            output: step.stepContent,
+            input: JSON.stringify(step.stepContent.find(c => c.type === 'text')?.text || ''),
+            output: JSON.stringify(step.stepContent),
           }
         }));
       }

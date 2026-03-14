@@ -105,14 +105,9 @@ function AuditTrail() {
                   </div>
                  )}
                  <div
-                    className="border-1-2 pl-3 py-1"
+                    className="border-l-2 pl-3 py-1"
                     style={{ borderColor: event.bg }}
                   >
-                    <div
-                  key={log.id}
-                  className="border-l-2 pl-3 py-1"
-                  style={{ borderColor: event.bg }}
-                >
                   {/* Top row: badge + timestamp */}
                   <div className="flex items-center gap-2 mb-1">
                     <span
@@ -146,7 +141,6 @@ function AuditTrail() {
                   >
                     {getEventDescription(log)}
                   </p>
-                </div>
                   </div>
                 </Fragment>
               );
