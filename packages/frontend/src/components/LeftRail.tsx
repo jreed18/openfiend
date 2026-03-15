@@ -49,7 +49,10 @@ function LeftRail() {
           : conversations.map(({ id, title }) => (
                 <li
                   key={id}
-                  onClick={() => switchConversation(id)}
+                  onClick={() => {
+                    console.log('Clicking conversation:', id);
+                    switchConversation(id);
+                  }}
                   className="cursor-pointer rounded px-3 py-2 text-xs transition-colors hover:bg-neutral-800/50"
                   style={{
                     color: id === conversationId ? '#e11d7e' : '#a3a3a3',

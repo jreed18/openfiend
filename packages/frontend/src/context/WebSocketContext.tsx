@@ -41,9 +41,7 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
   const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [conversations, setConversations] = useState<{ id: string, title: string }[]>([])
-  const [conversationId, setConversationId] = useState(() => {
-    return localStorage.getItem('conversation-id') || uuidv4();
-  });
+  const [conversationId, setConversationId] = useState(() => uuidv4());
 
   useEffect(() => {
     if (!url) return;
@@ -124,11 +122,25 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
     localStorage.setItem('conversation-id', newId);
   }, [])
 
-  const switchConversation = useCallback((id: string) => {
+  const switchConversation = useCallback(async (id: string) => {
     setConversationId(id);
     setMessages([]);
     localStorage.setItem('conversation-id', id);
+
+    const response = await fetch(`/api/conversations/${id}/messages`);
+    const messages = await response.json();
+    console.log('Fetched messages:', messages); // ADD THIS
+    
+    const formatted = messages.map((msg: { role: string; content: string; conversationId: string }) => ({
+      type: msg.role === 'user' ? 'user_input' : 'agent_response',
+      content: msg.content,
+      conversationId: msg.conversationId,
+    }));
+    
+    console.log('Formatted messages:', formatted); // ADD THIS
+    setMessages(formatted);
   }, []);
+
 
   const value: WebSocketContextType = {
     connectionStatus,

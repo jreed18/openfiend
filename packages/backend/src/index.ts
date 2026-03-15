@@ -148,8 +148,18 @@ wsApp.ws('/ws', (ws, _req) => {
   });
 });
 
+// Create GET route for messages in a conversation
+app.get('/api/conversations/:id/messages', (req, res) => {
+  console.log(`[API] GET /api/conversations/${req.params.id}/messages`);
+  const messages = db.select().from(messagesTable)
+    .where(eq(messagesTable.conversationId, req.params.id))
+    .all();
+  console.log(`[API] Returning ${messages.length} messages`);
+  res.json(messages);
+});
+
 // SPA fallback — serve index.html for all non-API routes
-app.get('/{*splat}', (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(frontendDistDir, 'index.html'));
 });
 

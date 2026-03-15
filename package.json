@@ -5,7 +5,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "pnpm --filter @openfiend/backend dev",
+    "dev": "pnpm build:frontend && pnpm --filter @openfiend/backend dev",
     "dev:frontend": "pnpm --filter @openfiend/frontend dev",
     "build": "pnpm --filter @openfiend/shared build && pnpm --filter @openfiend/frontend build && pnpm --filter @openfiend/backend build",
     "build:frontend": "pnpm --filter @openfiend/shared build && pnpm --filter @openfiend/frontend build",

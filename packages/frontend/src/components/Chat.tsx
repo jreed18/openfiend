@@ -11,7 +11,8 @@ function Chat() {
   const [isWaiting, setIsWaiting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, conversationId, send } = useWebSocket();
+  const { messages, conversationId, send, switchConversation } = useWebSocket();
+  const isFirstMount = useRef(true);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,8 +24,13 @@ function Chat() {
   }, [messages]);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (isFirstMount.current) {
+      localStorage.removeItem('conversation-id');
+      isFirstMount.current = false;
+      return;
+    }
+    switchConversation(conversationId);
+  }, [conversationId, switchConversation]);
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
