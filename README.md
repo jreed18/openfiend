@@ -183,7 +183,7 @@ This is early. Very very early. But if you're into transparent AI agents and wan
 <br>
 
 ```
-"I logged that you read this README btw" — Bob
+"I logged that you read this README btw" — Bob (probably)
 ```
 
 </div>
