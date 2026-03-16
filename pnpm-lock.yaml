@@ -39,6 +39,9 @@ importers:
       '@ai-sdk/openai':
         specifier: latest
         version: 3.0.41(zod@4.3.6)
+      '@notionhq/client':
+        specifier: ^5.13.0
+        version: 5.13.0
       '@openfiend/shared':
         specifier: workspace:*
         version: link:../shared
@@ -835,6 +838,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@notionhq/client@5.13.0':
+    resolution: {integrity: sha512-SWVaqYVNaecLzAAllups4vklxxomaFenEMEkoUs3ylvhK1KFTU5Jevgu9Uwm/TSdhsErV0ru5YHcLd3SNyPi6Q==}
+    engines: {node: '>=18'}
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -3570,6 +3577,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@notionhq/client@5.13.0': {}
 
   '@opentelemetry/api@1.9.0': {}
 

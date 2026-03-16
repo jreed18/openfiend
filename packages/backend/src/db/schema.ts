@@ -23,3 +23,8 @@ export const auditLogs = sqliteTable('audit_logs', {
     output: text('output'),
     timestamp: integer('timestamp').notNull(),
 });
+
+export const notionConfig = sqliteTable('notion_config', {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
+})
