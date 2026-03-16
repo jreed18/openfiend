@@ -1,33 +1,5 @@
 <div align="center">
 
-```
-                    %%%%%%%%%%%%%%
-               %%%%%           %%%%%%%%
-            %%%%%                   %%%%%
-  %%%      %%%%%                      %%%%      %%
-  %%%%%  %%%                             %%%% %%%%
-  %%%%%%%%%%                              %%%%%%%%
-    %%%%%%                                 %%%%%
-     %%%%                                   %%%%
-     %%%%                                    %%%
-     %%%    %%%%%                %%%%         %%
-     %%    %%%%%%               %%%%%         %%%
-    %%%     %%%%%              %%%%%%          %%%
-   %%%      %%%%   %             %%            %%%
-   %%%            %%         %                 %%%
-  %%%         %%%%%%%%%%%%%%%%%%%%             %%%
-  %%%          %%    %%%%%%%%% %%%              %%
-  %%%                                           %%
-  %%%              @                            %%
- %%%             %%####@%@@#####%               %%
- %%%             @###%%%##%#####%               %%
-%%%               @@@@     %%##%               %%%
-%%%                                            %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-```
-
-<br>
-
 # `O P E N F I E N D`
 
 ### **NO BLACK BOXES. NO TRUST REQUIRED.**
@@ -55,7 +27,7 @@ OpenFiend is an AI agent platform where **transparency isn't a feature — it's 
 The first agent — **Bob** — is a paranoid, audit-log-obsessed assistant powered by Claude. You talk to Bob through a real-time WebSocket chat interface. Everything he does is logged, visible, and controllable.
 
 ```
-This is v0.1. It's early. It's messy. It works.
+This is v0.1. It's early and messy, but we're (I'm) making it work!
 ```
 
 <br>
@@ -65,7 +37,7 @@ This is v0.1. It's early. It's messy. It works.
 ```bash
 git clone https://github.com/jreed18/openfiend.git
 cd openfiend
-cp .env.example .env.local    # add your ANTHROPIC_API_KEY
+cp .env.example .env.local    # add your API keys (see .env.example)
 pnpm install
 pnpm dev
 ```
@@ -118,7 +90,8 @@ openfiend/
 
 | Layer | Tech |
 |:--|:--|
-| **Agent** | Vercel AI SDK + Claude |
+| **Agent** | Vercel AI SDK (Anthropic + Groq) |
+| **Database** | SQLite + Drizzle ORM |
 | **Frontend** | React + TypeScript + Tailwind CSS |
 | **Backend** | Node.js + Express + express-ws |
 | **Protocol** | WebSocket (real-time, bidirectional) |
@@ -131,7 +104,8 @@ openfiend/
 
 - [x] Real-time chat with Bob via WebSocket
 - [x] Conversational context — Bob remembers what you said
-- [x] Web search tool — Bob can look things up
+- [x] SQLite persistence — conversations saved to disk via Drizzle ORM
+- [x] Basic audit trail — agent actions logged to the right panel
 - [x] 3-panel layout (history / chat / audit)
 - [x] Themed UI (magenta + orange on black)
 - [x] Zod-validated message protocol
@@ -140,10 +114,9 @@ openfiend/
 
 ## `> WHAT'S COMING`
 
-- [ ] **Audit trail** — live timeline of every LLM call, tool use, and permission decision
 - [ ] **Streaming** — word-by-word response rendering
+- [ ] **Richer audit trail** — tool invocations, permission decisions, full event timeline
 - [ ] **Permission system** — explicit approval dialogs before sensitive actions
-- [ ] **SQLite persistence** — conversations and audit logs saved to disk
 - [ ] **More tools** — Playwright, code execution, file operations
 - [ ] **Skill system** — sandboxed, manifest-based plugins
 
@@ -168,7 +141,7 @@ Most AI agents ask you to trust them. OpenFiend asks you to **watch.**
 
 ## `> CONTRIBUTING`
 
-This is early. Very very early. But if you're into transparent AI agents and want to help build something that doesn't hide what it's doing — [open an issue](https://github.com/jreed18/openfiend/issues).
+This is early. Very very early. Contributions aren't open yet — but if you're into transparent AI agents and want to follow along, [star the repo](https://github.com/jreed18/openfiend) and watch for updates. When v1 lands, [issues](https://github.com/jreed18/openfiend/issues) will be the place to jump in.
 
 <br>
 
@@ -178,7 +151,7 @@ This is early. Very very early. But if you're into transparent AI agents and wan
 
 **Built by [Jonah Reed](https://github.com/jreed18)**
 
-`openfiend.com`
+[`openfiend.com`](https://openfiend.com/)
 
 <br>
 
