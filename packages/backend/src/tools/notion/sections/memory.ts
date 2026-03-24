@@ -125,3 +125,104 @@ export async function readMemoriesBySession(sessionId: string): Promise<any[]> {
     return [];
   }
 }
+
+export async function readWillBySession(sessionId: string): Promise<string[]> {
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+    
+    if (!client || !memoryDbId) {
+      console.error('[Notion] Notion client or memory database not configured. Skipping will by session read.');
+      return [];
+    }
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: memoryDbId,
+      filter: {
+        and: [
+          { property: 'Type', select: { equals: 'will' } },
+          { property: 'Session', rich_text: { equals: sessionId } }
+        ]
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => {
+      // For will statements, we only care about the content
+      const content = page.properties.Content?.rich_text?.[0]?.text?.content || '';
+      return content;
+    });
+  } catch (error: any) {
+    console.error('[Notion] Failed to read will statements by session: ', error.message);
+    return [];
+  }
+}
+
+
+export async function readRecentMemories(limit: number = 10): Promise<any[]> {
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+
+    if (!client || !memoryDbId) return [];
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: memoryDbId,
+      filter: {
+        property: 'Type',
+        select: { equals: 'memory' }
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+      page_size: limit,
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => ({
+      content: page.properties.Content?.rich_text?.[0]?.text?.content || '',
+      timestamp: page.properties.Timestamp?.date?.start || '',
+    }));
+  } catch (error: any) {
+    console.error('[Notion] Failed to read memories: ', error.message);
+    return [];
+  }
+}
+
+export async function readRecentWill(limit: number = 10): Promise<string[]> {
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+
+    if (!client || !memoryDbId) return [];
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: memoryDbId,
+      filter: {
+        property: 'Type',
+        select: { equals: 'will' }
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+      page_size: limit,
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => 
+      page.properties.Content?.rich_text?.[0]?.text?.content || ''
+    );
+  } catch (error: any) {
+    console.error('[Notion] Failed to read will statements: ', error.message);
+    return [];
+  }
+}
