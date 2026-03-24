@@ -4,19 +4,45 @@ function LeftRail() {
   const { conversations, conversationId, switchConversation, startNewConversation } = useWebSocket();
 
   return (
-    <aside className="flex h-full flex-col border-r border-neutral-800">
+    <aside className="flex h-full flex-col" style={{ borderRight: '2px solid #262626' }}>
       {/* Brand header */}
-      <div className="border-b border-neutral-800 px-4 py-5">
-        <span
-          className="text-xs uppercase tracking-widest"
+      <div style={{ borderBottom: '2px solid #262626', position: 'relative' }} className="px-4 py-5">
+        {/* + accent */}
+        <div
+          aria-hidden="true"
           style={{
+            position: 'absolute',
+            top: '4px',
+            right: '8px',
+            fontSize: '16px',
             color: '#e11d7e',
-            fontFamily: "'Space Mono', monospace",
-            letterSpacing: '0.3em',
+            opacity: 0.3,
+            fontWeight: 'bold',
           }}
         >
-          openfiend v0.1
-        </span>
+          +
+        </div>
+
+        <div
+          className="text-lg font-bold uppercase"
+          style={{
+            color: '#e11d7e',
+            fontFamily: "'Syne', sans-serif",
+            letterSpacing: '0.05em',
+            textShadow: '0 0 10px rgba(225, 29, 126, 0.4)',
+          }}
+        >
+          OpenFiend
+        </div>
+        <div
+          className="text-[10px] uppercase tracking-widest mt-1"
+          style={{
+            color: '#525252',
+            fontFamily: "'Space Mono', monospace",
+          }}
+        >
+          v0.1
+        </div>
       </div>
 
       {/* Conversation list */}
@@ -53,11 +79,22 @@ function LeftRail() {
                     console.log('Clicking conversation:', id);
                     switchConversation(id);
                   }}
-                  className="cursor-pointer rounded px-3 py-2 text-xs transition-colors hover:bg-neutral-800/50"
+                  className="cursor-pointer px-3 py-2 text-xs transition-all border-l-2"
                   style={{
                     color: id === conversationId ? '#e11d7e' : '#a3a3a3',
                     backgroundColor: id === conversationId ? '#1a1a1a' : 'transparent',
+                    borderLeftColor: id === conversationId ? '#e11d7e' : 'transparent',
                     fontFamily: "'Space Mono', monospace",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (id !== conversationId) {
+                      e.currentTarget.style.backgroundColor = '#1a1a1a';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (id !== conversationId) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
                   }}
                 >
                   {title}
@@ -69,13 +106,23 @@ function LeftRail() {
       </nav>
 
       {/* Bottom actions */}
-      <div className="border-t border-neutral-800 px-4 py-4">
+      <div style={{ borderTop: '2px solid #262626' }} className="px-4 py-4">
         <button
           onClick={startNewConversation}
-          className="w-full rounded px-3 py-2 text-left text-xs uppercase tracking-widest transition-colors hover:bg-neutral-800/50"
+          className="w-full px-3 py-2 text-left text-xs uppercase tracking-widest transition-all"
           style={{
             color: '#e11d7e',
             fontFamily: "'Space Mono', monospace",
+            border: '2px solid #e11d7e',
+            backgroundColor: 'transparent',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#e11d7e';
+            e.currentTarget.style.color = '#0a0a0a';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#e11d7e';
           }}
         >
           + New Chat with Bob

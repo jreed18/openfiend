@@ -1,7 +1,5 @@
 import { getNotionClient } from '../client';
-import { db } from '@backend/db';
-import { notionConfig } from '@backend/db/schema';
-import { eq } from 'drizzle-orm';
+import { getConfigValue } from '../setup';
 
 /**
  * THREATS SECTION — Security event feed
@@ -13,28 +11,79 @@ import { eq } from 'drizzle-orm';
  * - Unusual file access patterns
  */
 
-// TODO: Implement writeThreat()
-// - Takes: { threatType: 'injection' | 'phishing' | 'suspicious-network' | 'file-access' | 'other', source: 'email' | 'webpage' | 'file' | 'calendar' | 'other', snippet: string, actionTaken: string }
-// - Retrieves threats_db_id from notion_config
-// - Calls notion client.pages.create() to add page to threats database
-// - Page properties: Threat Type (title), Source (select), Snippet (text), Action Taken (text), Timestamp (date)
-// - Return the page ID
+// Writes a new threat event to Notion. Returns the page ID if successful.
 export async function writeThreat(data: {
   threatType: 'injection' | 'phishing' | 'suspicious-network' | 'file-access' | 'other';
   source: 'email' | 'webpage' | 'file' | 'calendar' | 'other';
   snippet: string;
   actionTaken: string;
 }): Promise<string | null> {
-  // TODO: Implementation
-  return null;
+  try {
+    const client = getNotionClient();
+    const threatsDbId = getConfigValue('threats_db_id');
+
+    if (!client || !threatsDbId) {
+      console.error('[Notion] Notion client or threats database not configured. Skipping threat write.');
+      return null;
+    }
+
+    const notionResponse = await client.pages.create({
+      parent: {
+        type: 'database_id',
+        database_id: threatsDbId,
+      },
+      properties: {
+        'Threat Type': { title: [{ text: { content: data.threatType } }] },
+        Source: { select: { name: data.source } },
+        Snippet: { rich_text: [{ text: { content: data.snippet } }] },
+        'Action Taken': { rich_text: [{ text: { content: data.actionTaken } }] },
+        Timestamp: { date: { start: new Date().toISOString() } },
+      }
+    });
+
+    if (!notionResponse) return null;
+
+    return notionResponse.id;
+  } catch (error: any) {
+    console.error('[Notion] Failed to write threat: ', error.message);
+    return null;
+  }
 }
 
-// TODO: Implement readRecentThreats()
-// - Retrieves threats_db_id from notion_config
-// - Queries threats database, sorted by Timestamp descending
-// - Limit to last 20
-// - Returns array: { threatType, source, snippet, actionTaken, timestamp }
+// Queries threats database, sorted by Timestamp descending and returns array: { threatType, source, snippet, actionTaken, timestamp }
 export async function readRecentThreats(limit: number = 20): Promise<any[]> {
-  // TODO: Implementation
-  return [];
+  try {
+    const client = getNotionClient();
+    const threatsDbId = getConfigValue('threats_db_id');
+
+    if (!client || !threatsDbId) {
+      console.error('[Notion] Notion client or threats database not configured. Skipping threats read.');
+      return [];
+    }
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: threatsDbId,
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+      page_size: limit,
+    });
+
+    if (!notionResult?.results) {
+      console.error('[Notion] No results returned when querying threats database');
+      return [];
+    }
+
+    return notionResult.results.map((page: any) => ({
+      threatType: page.properties['Threat Type']?.title?.[0]?.text?.content || '',
+      source: page.properties['Source']?.select?.name || '',
+      snippet: page.properties['Snippet']?.rich_text?.[0]?.text?.content || '',
+      actionTaken: page.properties['Action Taken']?.rich_text?.[0]?.text?.content || '',
+      timestamp: page.properties['Timestamp']?.date?.start || '',
+    }));
+  } catch (error: any) {
+    console.error('[Notion] Failed to read threats: ', error.message);
+    return [];
+  }
 }

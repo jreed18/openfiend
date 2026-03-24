@@ -1,7 +1,5 @@
 import { getNotionClient } from '../client';
-import { db } from '@backend/db';
-import { notionConfig } from '@backend/db/schema';
-import { eq } from 'drizzle-orm';
+import { getConfigValue } from '../setup';
 
 /**
  * MEMORY SECTION — Bob's long-term memory + will statements
@@ -14,38 +12,116 @@ import { eq } from 'drizzle-orm';
  * Bob reads recent Memory entries to restore context.
  */
 
-// TODO: Implement writeMemory()
-// - Takes: { type: 'memory' | 'will', content: string, sessionId?: string }
-// - Retrieves memory_db_id from notion_config
-// - Calls notion client.pages.create() to add page to memory database
-// - Page properties: Type (select), Content (text), Session (text), Timestamp (date), Active (checkbox)
-// - Return the page ID
+// Writes a new memory or will statement to Notion. Returns the page ID if successful.
 export async function writeMemory(data: {
   type: 'memory' | 'will';
   content: string;
   sessionId?: string;
 }): Promise<string | null> {
-  // TODO: Implementation
-  return null;
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+
+    if (!client || !memoryDbId) {
+      console.error('[Notion] Notion client or memory database not configured. Skipping memory write.');
+      return null;
+    }
+
+    const notionResponse = await client.pages.create({
+      parent: {
+        type: 'database_id',
+        database_id: memoryDbId,
+      },
+      properties: {
+        Name: { title: [{ text: { content: `${data.type} - ${new Date().toLocaleString()}` } }] },
+        Type: { select: { name: data.type } },
+        Content: { rich_text: [{ text: { content: data.content } }] },
+        Session: { rich_text: [{ text: { content: data.sessionId || '' } }] },
+        Timestamp: { date: { start: new Date().toISOString() } },
+        Active: { checkbox: true },
+      }
+    });
+
+    if (!notionResponse) return null;
+
+    return notionResponse.id;
+  } catch (err: any) {
+    console.error('[Notion] Failed to write memory: ', err.message);
+    return null;
+  }
 }
 
-// TODO: Implement readWill()
-// - Retrieves memory_db_id from notion_config
-// - Queries memory database for Type = "will" AND Active = true
-// - Returns array of will statements: { content }
-// - These get appended to Bob's system prompt on startup
+// Queries memory database for Type = "will" AND Active = true and returns array of will statements: { content }
 export async function readWill(): Promise<string[]> {
-  // TODO: Implementation
-  return [];
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+
+    if (!client || !memoryDbId) {
+      console.error('[Notion] Notion client or memory database not configured. Skipping will read.');
+      return [];
+    }
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: memoryDbId,
+      filter: {
+        and: [
+          { property: 'Type', select: { equals: 'will' } },
+          { property: 'Active', select: { equals: 'true' } }
+        ]
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => {
+      const content = page.properties.Content?.rich_text?.[0]?.text?.content || '';
+      return content;
+    });
+  } catch (error: any) {
+    console.error('[Notion] Failed to read will statements: ', error.message);
+    return [];
+  }
 }
 
-// TODO: Implement readMemoriesBySession()
-// - Takes: sessionId (conversationId)
-// - Retrieves memory_db_id from notion_config
-// - Queries memory database for Type = "memory" AND Session = sessionId
-// - Returns array: { content, timestamp }
-// - Used to restore context at start of conversation
+// Queries memory database for Type = "memory" AND Session = sessionId and returns array: { content, timestamp }
 export async function readMemoriesBySession(sessionId: string): Promise<any[]> {
-  // TODO: Implementation
-  return [];
+  try {
+    const client = getNotionClient();
+    const memoryDbId = getConfigValue('memory_db_id');
+
+    if (!client || !memoryDbId) {
+      console.error('[Notion] Notion client or memory database not configured. Skipping memory read.');
+      return [];
+    }
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: memoryDbId,
+      filter: {
+        and: [
+          { property: 'Type', select: { equals: 'memory' } },
+          { property: 'Session', rich_text: { equals: sessionId } }
+        ]
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => {
+      const content = page.properties.Content?.rich_text?.[0]?.text?.content || '';
+      const timestamp = page.properties.Timestamp?.date?.start || '';
+      return { content, timestamp };
+    });
+  } catch (error: any) {
+    console.error('[Notion] Failed to read memories by session: ', error.message);
+    return [];
+  }
 }

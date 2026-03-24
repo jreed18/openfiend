@@ -55,19 +55,45 @@ function AuditTrail() {
   }
 
   return (
-    <aside className="flex h-full flex-col border-l border-neutral-800">
+    <aside className="flex h-full flex-col" style={{ borderLeft: '2px solid #262626' }}>
       {/* Panel header */}
-      <div className="border-b border-neutral-800 px-4 py-5">
-        <span
-          className="text-xs uppercase tracking-widest"
+      <div style={{ borderBottom: '2px solid #262626', position: 'relative' }} className="px-4 py-5">
+        {/* + accent */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: '4px',
+            right: '8px',
+            fontSize: '16px',
+            color: '#f97316',
+            opacity: 0.3,
+            fontWeight: 'bold',
+          }}
+        >
+          +
+        </div>
+
+        <div
+          className="text-lg font-bold uppercase"
           style={{
             color: '#f97316',
-            fontFamily: "'Space Mono', monospace",
-            letterSpacing: '0.2em',
+            fontFamily: "'Syne', sans-serif",
+            letterSpacing: '0.05em',
+            textShadow: '0 0 10px rgba(249, 115, 22, 0.4)',
           }}
         >
           Audit Trail
-        </span>
+        </div>
+        <div
+          className="text-[10px] uppercase tracking-widest mt-1"
+          style={{
+            color: '#404040',
+            fontFamily: "'Space Mono', monospace",
+          }}
+        >
+          // all events logged
+        </div>
       </div>
 
       {/* Timeline area */}
@@ -80,7 +106,7 @@ function AuditTrail() {
               fontFamily: "'Space Mono', monospace",
             }}
           >
-            No events yet. Actions will appear here as the agent runs.
+            &gt; no events recorded.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -105,17 +131,18 @@ function AuditTrail() {
                   </div>
                  )}
                  <div
-                    className="border-l-2 pl-3 py-1"
-                    style={{ borderColor: event.bg }}
+                    className="py-1 pl-3"
+                    style={{ borderLeft: '4px solid ' + event.bg }}
                   >
                   {/* Top row: badge + timestamp */}
                   <div className="flex items-center gap-2 mb-1">
                     <span
-                      className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider"
                       style={{
                         backgroundColor: event.bg,
                         color: '#0a0a0a',
                         fontFamily: "'Space Mono', monospace",
+                        border: '1px solid ' + event.bg,
                       }}
                     >
                       {event.label}
@@ -150,10 +177,11 @@ function AuditTrail() {
       </div>
 
       {/* Footer status */}
-      <div className="border-t border-neutral-800 px-4 py-3 flex items-center gap-2">
+      <div style={{ borderTop: '2px solid #262626' }} className="px-4 py-3 flex items-center gap-2">
         <div
-          className="h-1.5 w-1.5 rounded-full"
           style={{
+            width: '6px',
+            height: '6px',
             backgroundColor: auditLogs.length > 0 ? '#22c55e' : '#404040',
           }}
         />
@@ -164,7 +192,7 @@ function AuditTrail() {
             fontFamily: "'Space Mono', monospace",
           }}
         >
-          {auditLogs.length} events · hash chain intact
+          {auditLogs.length} EVENTS / CHAIN OK
         </p>
       </div>
     </aside>

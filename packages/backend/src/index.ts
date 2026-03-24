@@ -1,7 +1,7 @@
 import express from 'express';
 import expressWs from 'express-ws';
 import { z } from 'zod';
-import { getStreamedResponseFullHistory } from './orchestration/orchestrator';
+import { getStreamedResponseFullHistory, resolveDecision } from './orchestration/orchestrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +10,9 @@ import { messages as messagesTable,
   conversations as conversationsTable, 
   auditLogs as auditLogsTable } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { PermissionStatus } from '@openfiend/shared';
+import { createTools } from './tools/tools';
+import { initializeNotionWorkspace } from './tools/notion';
 
 const app = express();
 const wsApp = expressWs(app).app;
@@ -45,6 +48,26 @@ wsApp.ws('/ws', (ws, _req) => {
   ws.on('message', async (msg) => {
     console.log('Received message:', msg);
     try {
+
+      const raw = JSON.parse(msg.toString());
+
+      if (raw.type === 'permission_response') {
+        // validate with PermissionResponseSchema (or inline z.object parse)
+        const PermissionResponseSchema = z.object({
+          type: z.literal('permission_response'),
+          id: z.string(),
+          decision: z.enum(['approved', 'rejected']),
+          conversationId: z.string(),
+        });
+
+        const parsedResponse = PermissionResponseSchema.parse(raw);
+        // call resolveDecision(parsedResponse.id, parsedResponse.decision)
+        console.log(`Received permission response for ID ${parsedResponse.id}: ${parsedResponse.decision}`);
+        resolveDecision(parsedResponse.id, parsedResponse.decision as PermissionStatus);
+        console.log(`Permission decision resolved for ID ${parsedResponse.id}`);
+        return; // return early (don't send to LLM)
+      }
+
       const parsedMessage = UserInputSchema.parse(JSON.parse(msg.toString()));
 
       // TODO: Create context for LLM based on conversationId.
@@ -88,8 +111,11 @@ wsApp.ws('/ws', (ws, _req) => {
         conversationId: conversationId,
       }));
 
+      const tools = createTools(ws, conversationId);
+
       const response = await getStreamedResponseFullHistory(
-        history.filter(msg => 'content' in msg)
+        history.filter(msg => 'content' in msg),
+        tools
       );
 
       // add response to history
@@ -173,6 +199,10 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 try {
   wsApp.listen(PORT, () => {
     console.log(`OPENFIEND backend running on http://localhost:${PORT}`);
+
+    // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
+    console.log(`[Notion] Initializing Bob's brain structure...`);
+    initializeNotionWorkspace();
   });
 } catch (err) {
   console.error('Failed to start server:', err);

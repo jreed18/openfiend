@@ -14,7 +14,7 @@
     "@ai-sdk/anthropic": "^3.0.46",
     "@ai-sdk/groq": "^3.0.29",
     "@ai-sdk/openai": "latest",
-    "@notionhq/client": "^5.13.0",
+    "@notionhq/client": "^5.14.0",
     "@openfiend/shared": "workspace:*",
     "ai": "^6.0.97",
     "ai-sdk-ollama": "^3.8.0",

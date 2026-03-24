@@ -1,7 +1,5 @@
 import { getNotionClient } from '../client';
-import { db } from '@backend/db';
-import { notionConfig } from '@backend/db/schema';
-import { eq } from 'drizzle-orm';
+import { getConfigValue } from '../setup';
 
 /**
  * SHADOW SECTION — Shadow mode observations
@@ -10,20 +8,42 @@ import { eq } from 'drizzle-orm';
  * User reviews in Notion and decides which actions to permanently enable.
  */
 
-// TODO: Implement writeShadowObservation()
-// - Takes: { wouldHaveDone: string, tool: string, input: string }
-// - Retrieves shadow_db_id from notion_config
-// - Calls notion client.pages.create() to add page to shadow-log database
-// - Page properties: Would Have Done (title), Tool (text), Input (text), Enabled (checkbox), Timestamp (date)
-// - Enabled starts as false
-// - Return the page ID
+// Writes a new shadow observation to Notion. Returns the page ID if successful.
 export async function writeShadowObservation(data: {
   wouldHaveDone: string;
   tool: string;
   input: string;
 }): Promise<string | null> {
-  // TODO: Implementation
-  return null;
+  try {
+    const client = getNotionClient();
+    const shadowDbId = getConfigValue('shadow_db_id');
+
+    if (!client || !shadowDbId) {
+      console.error('[Notion] Notion client or shadow database not configured. Skipping shadow observation write.');
+      return null;
+    }
+
+    const notionResponse = await client.pages.create({
+      parent: {
+        type: 'database_id',
+        database_id: shadowDbId,
+      },
+      properties: {
+        'Would Have Done': { title: [{ text: { content: data.wouldHaveDone } }] },
+        Tool: { rich_text: [{ text: { content: data.tool } }] },
+        Input: { rich_text: [{ text: { content: data.input } }] },
+        Enabled: { checkbox: false },
+        Timestamp: { date: { start: new Date().toISOString() } },
+      }
+    });
+
+    if (!notionResponse) return null;
+
+    return notionResponse.id;
+  } catch (error: any) {
+    console.error('[Notion] Failed to write shadow observation: ', error.message);
+    return null;
+  }
 }
 
 // TODO: Implement readShadowObservations()
@@ -32,15 +52,68 @@ export async function writeShadowObservation(data: {
 // - Returns array: { pageId, wouldHaveDone, tool, input, timestamp }
 // - User will review these and check Enabled to approve
 export async function readShadowObservations(): Promise<any[]> {
-  // TODO: Implementation
-  return [];
+  try {
+    const client = getNotionClient();
+    const shadowDbId = getConfigValue('shadow_db_id');
+
+    if (!client || !shadowDbId) {
+      console.error('[Notion] Notion client or shadow database not configured. Skipping shadow observations read.');
+      return [];
+    }
+
+    const notionResponse = await client.dataSources.query({
+      data_source_id: shadowDbId,
+      filter: {
+        property: 'Enabled',
+        checkbox: { equals: false },
+      },
+      sorts: [{
+        property: 'Timestamp',
+        direction: 'descending',
+      }],
+    });
+
+    if (!notionResponse?.results) {
+      console.error('[Notion] No results returned when querying shadow observations database');
+      return [];
+    }
+
+    return notionResponse.results.map((page: any) => ({
+      pageId: page.id,
+      wouldHaveDone: page.properties['Would Have Done']?.title?.[0]?.text?.content || '',
+      tool: page.properties['Tool']?.rich_text?.[0]?.text?.content || '',
+      input: page.properties['Input']?.rich_text?.[0]?.text?.content || '',
+      timestamp: page.properties['Timestamp']?.date?.start || '',
+    }));
+  } catch (error: any) {
+    console.error('[Notion] Failed to read shadow observations: ', error.message);
+    return [];
+  }
 }
 
-// TODO: Implement markShadowAsEnabled()
-// - Takes: pageId
-// - Updates the shadow-log page's Enabled checkbox to true
-// - Return true if successful
+// Updates the shadow-log page's Enabled checkbox to true and returns true if successful
 export async function markShadowAsEnabled(pageId: string): Promise<boolean> {
-  // TODO: Implementation
-  return false;
+  try {
+    const client = getNotionClient();
+    const shadowDbId = getConfigValue('shadow_db_id');
+
+    if (!client || !shadowDbId) {
+      console.error('[Notion] Notion client or shadow database not configured. Skipping mark shadow as enabled.');
+      return false;
+    }
+
+    const notionResponse = await client.pages.update({
+      page_id: pageId,
+      properties: {
+        Enabled: { checkbox: true },
+      }
+    });
+
+    if (!notionResponse) return false;
+
+    return true;
+  } catch (error: any) {
+    console.error('[Notion] Failed to mark shadow observation as enabled: ', error.message);
+    return false;
+  }
 }

@@ -2,12 +2,9 @@ import { getNotionClient } from './client';
 import { notionConfig } from "@backend/db/schema";
 import { db } from "@backend/db";
 import { eq } from "drizzle-orm";
-import { v4 as uuidv4 } from 'uuid';
 
-// TODO: Implement getConfigValue(key: string): string | null
-// - Query notion_config table for the given key
-// - Return value if found, null otherwise
-function getConfigValue(key: string): string | null {
+// Get a config value from the notion_config table by key
+export function getConfigValue(key: string): string | null {
   const notionConfigEntry = db.select().from(notionConfig)
   .where(eq(notionConfig.key, key)).get();
 
@@ -16,9 +13,8 @@ function getConfigValue(key: string): string | null {
   return notionConfigEntry.value;
 }
 
-// TODO: Implement storeConfigValue(key: string, value: string): void
-// - Insert or update notion_config with key-value pair
-function storeConfigValue(key: string, value: string): void {
+// Store a config value in the notion_config table (key-value pair)
+export function storeConfigValue(key: string, value: string): void {
     try {  
         const valueExists = getConfigValue(key);
         if (!valueExists) {
@@ -35,33 +31,7 @@ function storeConfigValue(key: string, value: string): void {
     }
 }
 
-// TODO: Implement initializeNotionWorkspace(): Promise<void>
-// - Get Notion client from getNotionClient()
-// - Check if 'root_page_id' exists in notion_config using getConfigValue()
-// - If exists, log "OpenFiend workspace already configured" and return early
-// - If not exists:
-//   1. Get root page ID from process.env.NOTION_OPENFIEND_WORKSPACE_PAGE_ID
-//      - This is created manually by user in Notion (format: 32-char hex string after last dash in URL)
-//      - If not set, log error and return
-//   2. Store root_page_id in notion_config
-//   3. Create decisions database (parent: { page_id: rootPageId })
-//      - Title: "Decisions"
-//      - Properties: Action (title), Reasoning (text), Risks (text), Risk (select: low/medium/high), Status (select: pending_approval/approved/rejected), Annotation (text), Timestamp (date), Tool (text)
-//   4. Create memory database (parent: { page_id: rootPageId })
-//      - Title: "Memory"
-//      - Properties: Type (select: memory/will), Content (text), Session (text), Timestamp (date), Active (checkbox)
-//   5. Create autopsies database (parent: { page_id: rootPageId })
-//      - Title: "Autopsies"
-//      - Properties: What Happened (title), Intent (text), Reality (text), Cause (text), Learning (text), Severity (select: minor/significant/critical), Timestamp (date)
-//   6. Create threats database (parent: { page_id: rootPageId })
-//      - Title: "Threats"
-//      - Properties: Threat Type (title), Source (select: email/webpage/file/calendar/other), Snippet (text), Action Taken (text), Timestamp (date)
-//   7. Create shadow-log database (parent: { page_id: rootPageId })
-//      - Title: "Shadow Log"
-//      - Properties: Would Have Done (title), Tool (text), Input (text), Enabled (checkbox), Timestamp (date)
-//   8. Store all 5 database IDs in notion_config: decisions_db_id, memory_db_id, autopsies_db_id, threats_db_id, shadow_db_id
-//   9. Log "OpenFiend workspace created successfully"
-// - Handle errors gracefully (log but don't crash if Notion unavailable)
+// Initializes the Notion workspace by creating necessary databases and storing their IDs in the notion_config table
 export async function initializeNotionWorkspace(): Promise<void> {
   const rootPageValue = getConfigValue('root_page_id');
   if (rootPageValue) {
@@ -107,6 +77,7 @@ export async function initializeNotionWorkspace(): Promise<void> {
             { name: 'approved', color: 'green' },
             { name: 'rejected', color: 'red' },
           ]}},
+          ConversationId: { rich_text: {} },
           Annotation: { rich_text: {} },
           Timestamp: { date: {} },
           Tool: { rich_text: {} }
@@ -171,11 +142,11 @@ export async function initializeNotionWorkspace(): Promise<void> {
         properties: {
           'Threat Type': { title: {} },
           Source: { select: { options: [
-            { name: 'email', color: 'red' },
-            { name: 'webpage', color: 'orange' },
-            { name: 'file', color: 'yellow' },
-            { name: 'calendar', color: 'blue' },
-            { name: 'other', color: 'gray' },
+              { name: 'email', color: 'red' },
+              { name: 'webpage', color: 'orange' },
+              { name: 'file', color: 'yellow' },
+              { name: 'calendar', color: 'blue' },
+              { name: 'other', color: 'gray' },
           ]}},
           Snippet: { rich_text: {} },
           'Action Taken': { rich_text: {} },

@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from "react";
-import { AuditLogEntry, Message } from '@openfiend/shared';
+import { AuditLogEntry, Message, ToolCall } from '@openfiend/shared';
 import { v4 as uuidv4 } from "uuid";
 
 interface PermissionRequest {
@@ -17,6 +17,9 @@ interface WebSocketContextType {
   startNewConversation: () => void,
   switchConversation: (id: string) => void,
   send: (content: string, conversationId: string) => void,
+  toolCalls: ToolCall[],
+  approveToolCall: (id: string) => void,
+  rejectToolCall: (id: string) => void,
 }
 
 interface WebSocketProviderProps {
@@ -39,6 +42,7 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
   const [messages, setMessages] = useState<Message[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [conversations, setConversations] = useState<{ id: string, title: string }[]>([])
   const [conversationId, setConversationId] = useState(() => uuidv4());
@@ -79,6 +83,18 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
             skill: parsedMessage.skillName,
             permissions: parsedMessage.permissions,
           });
+
+          // push to toolCalls array:
+          setToolCalls(prev => [...prev, {
+            id: parsedMessage.id,
+            toolName: parsedMessage.toolName,
+            action: parsedMessage.action,
+            reasoning: parsedMessage.reasoning,
+            riskLevel: parsedMessage.riskLevel,
+            status: 'pending_approval',
+            conversationId: parsedMessage.conversationId,
+          }]);
+
         } else if (parsedMessage.type === 'error') {
           console.error('Server error:', parsedMessage.message);
         } else if (parsedMessage.type === 'audit_log') {
@@ -122,6 +138,48 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
     localStorage.setItem('conversation-id', newId);
   }, [])
 
+  // cover approval scenario
+  const approveToolCall = useCallback((id: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const tool = toolCalls.find(x => x.id === id);
+      
+      if (!tool) {
+        console.error(`Tool call with id ${id} not found`);
+        return;
+      }
+      
+      ws.send(JSON.stringify({
+        type: 'permission_response',
+        id,
+        decision: 'approved',
+        conversationId: tool.conversationId,
+      }));
+      
+      // update toolCalls with new approved info
+      setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'approved' } : x ));
+    }
+  }, [ws, toolCalls]);
+
+  // cover rejection scenario
+  const rejectToolCall = useCallback((id: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const tool = toolCalls.find(x => x.id === id);
+      if (!tool) {
+        console.error(`Tool call with id ${id} not found`);
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'permission_response',
+        id,
+        decision: 'rejected',
+        conversationId: tool.conversationId,
+      }));
+
+      setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'rejected'} : x ));
+    }
+  }, [ws, toolCalls]);
+
   const switchConversation = useCallback(async (id: string) => {
     setConversationId(id);
     setMessages([]);
@@ -149,8 +207,11 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
     currentPermissionRequest,
     conversationId,
     conversations,
+    toolCalls,
     startNewConversation,
     switchConversation,
+    approveToolCall,
+    rejectToolCall,
     send,
   };
 
