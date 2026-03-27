@@ -1,8 +1,16 @@
+import { homedir } from 'os';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { prompts } from '@backend/orchestration/prompts';
-import { requestPermission } from '@backend/orchestration/orchestrator';
 import { WebSocket } from 'ws';
+import { readRecentMemories, readRecentWill, writeMemory } from '@backend/tools/notion/sections/memory';
+import { readRecentAutopsies } from '@backend/tools/notion/sections/autopsies'
+import { scrapeUrl } from '@backend/tools/utils';
+import { PermissionStatus } from '@openfiend/shared';
+import { requestPermission } from '@backend/orchestration/orchestrator';
+
+
+// 
 
 /**
  * V1 Tools Implementation Roadmap
@@ -46,7 +54,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
                 console.log(`Reasoning: ${reasoning}`);
                 console.log(`Risks: ${risks}`);
                 console.log(`Risk Level: ${riskLevel}`);
-                return requestPermission(
+                const decision = await requestPermission(
                     ws,
                     {
                     toolName,
@@ -57,14 +65,31 @@ export function createTools(ws: WebSocket, conversationId: string) {
                     riskLevel,
                     conversationId,
                 });
+                
+                if (decision === PermissionStatus.Approved) {
+                    return {
+                        status: PermissionStatus.Approved,
+                        toolName,
+                        action,
+                        instruction: `Permission APPROVED. You MUST now call the "${toolName}" tool to exexute "${action}". Do NOT tell the user you already did it - you have not yet performed the action.`
+                    }
+                }
+
+                return {
+                    status: PermissionStatus.Rejected,
+                    toolName,
+                    action,
+                    instruction: `Permission REJECTED by the user. Do NOT proceed with: "${action}". Acknowledge the rejection and move on.`,
+                }
             }
         }),
         runShell: tool({
             description: 'Execute a shell command on the server. This is a powerful tool that can do anything from listing files to running scripts. ALWAYS use assessPermission before this tool.',
             inputSchema: z.object({
                 command: z.string().describe('The shell command to execute, including any arguments. For example: "ls -la /home/user" or "python script.py --arg value"'),
+                cwd: z.string().optional().describe('The working directory to execute the command in. If not specified, defaults to the server\'s home directory. For example: "/home/user/projects"'),
             }),
-            async execute({ command }) {
+            async execute({ command, cwd }) {
                 const { exec } = await import('child_process');
                 const { promisify } = await import('util');
                 const execAsync = promisify(exec);
@@ -72,6 +97,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
                 try {
                     const { stdout, stderr } = await execAsync(command, {
                         encoding: 'utf-8',
+                        cwd: cwd || homedir(),
                         timeout: 10000, // 10 second timeout to prevent hanging
                         maxBuffer: 1024 * 1024, // 1 MB max output to prevent memory issues
                     });
@@ -85,7 +111,140 @@ export function createTools(ws: WebSocket, conversationId: string) {
                     return { success: false, error: error.message };
                 }
             }
-        })
+        }),
+        recall: tool({
+            description: 'Search your memory and will. Use when you need to remember something or check your principles.',
+            inputSchema: z.object({
+                query: z.string().optional().describe('Keyword to search for. Leave empty for most recent.'),
+                source: z.enum(['memory', 'will', 'both']).default('both').describe('Which store to search.'),
+                limit: z.number().optional().describe('How many results. Default 10.'),
+            }),
+            async execute({ query, source = 'both', limit = 10 }) {
+                console.log(`I have no clue what you're saying, so let me see if I can remember.`);
+                const results: any[] = [];
+                if (source === 'memory' || source === 'both') {
+                    const memories = await readRecentMemories(limit, query);
+                    results.push(...memories.map(m => ({ ...m, source: 'memory' })));
+                }
+                if (source === 'will' || source === 'both') {
+                    const will = await readRecentWill(limit, query);
+                    results.push(...will.map(w => ({ content: w, source: 'will' })));
+                }
+                return { results, count: results.length };
+            }
+        }),
+        remember: tool({
+            description: 'Write a new memory or will statement. Use this to remember important information or set principles for yourself.',
+            inputSchema: z.object({
+                content: z.string().describe('The content of the memory or will statement. Be clear and concise.'),
+                type: z.enum(['memory', 'will']).describe('Whether this is a memory (something that happened) or a will statement (a principle or intention).'),
+            }),
+            async execute({ type, content }: { type: 'memory' | 'will'; content: string }) {
+                console.log(`Remembering something new: ${content}`);
+                const newMemory = await writeMemory({ type, content });
+                if (!newMemory) {
+                    console.error('Failed to write memory.');
+                    return { success: false, error: 'Failed to write memory' };
+                }
+                console.log('Memory written with ID: ', newMemory);
+                return {
+                    success: true,
+                    memoryId: newMemory,
+                }
+            }
+        }),
+        writeAutopsy: tool({
+            description: 'Write an autopsy report to the autopsy database. This is for recording post-mortem analysis of failures or incidents. Maintain your voice and communication style when writing these records.',
+            inputSchema: z.object({
+                whatHappened: z.string().describe('Describe the incident or failure in detail. What exactly went wrong?'),
+                intent: z.string().describe('Describe the intent behind the actions that led to the incident. What were you trying to achieve?'),
+                reality: z.string().describe('Describe the actual outcome and how it differed from the intended outcome. What happened instead?'),
+                cause: z.string().describe('Analyze and describe the root cause of the incident. Why did it happen?'),
+                learning: z.string().describe('Describe what you learned from this incident and how you will prevent it in the future. What changes will you make?'),
+                severity: z.enum(['minor', 'significant', 'critical']).describe('Assess the severity of the incident based on its impact and consequences.'),
+            }),
+            async execute({ whatHappened, intent, reality, cause, learning, severity }) {
+                console.log(`Writing autopsy report for incident: ${whatHappened}`);
+                const { writeAutopsy } = await import('@backend/tools/notion/sections/autopsies');
+                const result = await writeAutopsy({
+                    whatHappened,
+                    intent,
+                    reality,
+                    cause,
+                    learning,
+                    severity,
+                });
+
+                if (!result) {
+                    console.error(`Failed to write autopsy report.`);
+                    return { 
+                        success: false, 
+                        error: 'Failed to write autopsy report' };
+                }
+
+                console.log('Autopsy report written with ID: ', result);
+                return {
+                    success: true,
+                    pageId: result,
+                };
+            }
+        }),
+        getAutopsy: tool({
+            description: 'Retrieve recent autopsy reports. Use this to review past incidents and learn from them.',
+            inputSchema: z.object({
+                limit: z.number().optional().describe('How many recent autopsy reports to retrieve. Default is 10.'),
+            }),
+            async execute({ limit = 10 }) {
+                console.log(`Retrieving recent autopsy reports...`);
+                const recentAutopsies = await readRecentAutopsies(limit);
+                if (recentAutopsies.length === 0) {
+                    console.error('[Notion] No recent autopsy reports found.');
+                    return {
+                        success: true,
+                        autopsies: [],
+                        error: 'No autopsy reports found.',
+                    }
+                }
+
+                console.log(`[Notion] Found ${limit} recent autopsy reports.`);
+                return {
+                    success: true,
+                    autopsies: recentAutopsies,
+                    count: recentAutopsies.length,
+                }
+            }
+        }),
+        summarizeUrl: tool({
+                description: 'Fetch a URL and return its text content. Use for reading docs, articles, or any web page.',
+                inputSchema: z.object({
+                    url: z.string().describe('The URL of the web page to summarize. For example: "https://en.wikipedia.org/wiki/OpenAI"'),
+                }),
+                async execute({ url }) {
+                    try {
+                        console.log(`Fetching and summarizing URL: ${url}`);
+                        const result = await scrapeUrl(url);
+                        if (!result.success) {
+                            console.error(`Failed to summarize URL. Reason: ${result.error}`);
+                            return {
+                                success: false,
+                                error: result.error,
+                            }
+                        }
+                        return {
+                            success: true,
+                            title: result.title,
+                            content: result.content,
+                            byline: result.byline,
+                        }
+                    } catch (error: any) {
+                        console.error(`URL summarizer failed. Reason: ${error.message}`);
+                        return {
+                            success: false,
+                            error: error.message,
+                        }
+                    }
+                }
+        }),
     }
 }
 

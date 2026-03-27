@@ -13,9 +13,13 @@ import { eq } from 'drizzle-orm';
 import { PermissionStatus } from '@openfiend/shared';
 import { createTools } from './tools/tools';
 import { initializeNotionWorkspace } from './tools/notion';
+import WebSocket from 'ws';
+import { startNotionPolling } from './tools/notion/poller';
 
 const app = express();
-const wsApp = expressWs(app).app;
+
+const wsInstance = expressWs(app);
+const wsApp = wsInstance.app;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,10 +49,19 @@ app.get('/health', (_req, res) => {
 wsApp.ws('/ws', (ws, _req) => {
   console.log('WebSocket client connected');
 
+  const provider = process.env.LLM_PROVIDER || 'anthropic';
+  const model = provider === 'anthropic' ? 'claude-haiku-4-5' : 'groq-llama-3.1-8b-instant';
+
+  // send system info message to frontend so it knows which model/provider we're using
+  ws.send(JSON.stringify({
+    type: 'system_info',
+    model,
+    provider,
+   }));
+
   ws.on('message', async (msg) => {
     console.log('Received message:', msg);
     try {
-
       const raw = JSON.parse(msg.toString());
 
       if (raw.type === 'permission_response') {
@@ -195,6 +208,18 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(err.status || 500).json({ error: err.message });
 });
 
+// broadcast helper
+const broadcastToClients = (message: unknown) => {
+  const payload = JSON.stringify(message);
+  const wss = wsInstance.getWss();
+
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  }
+}
+
 // Start server
 try {
   wsApp.listen(PORT, () => {
@@ -203,6 +228,8 @@ try {
     // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
     console.log(`[Notion] Initializing Bob's brain structure...`);
     initializeNotionWorkspace();
+    startNotionPolling(broadcastToClients);
+    console.log(`[Notion] Initialization complete. Started polling for decision updates.`);
   });
 } catch (err) {
   console.error('Failed to start server:', err);

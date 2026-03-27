@@ -1,4 +1,4 @@
-import { getNotionClient } from '../client';
+import { getNotionClient, getDataSourceId } from '../client';
 import { getConfigValue } from '../setup';
 
 /**
@@ -62,8 +62,15 @@ export async function readWill(): Promise<string[]> {
       return [];
     }
 
+    const dataSourceId = await getDataSourceId(memoryDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for memory database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: memoryDbId,
+      data_source_id: dataSourceId,
       filter: {
         and: [
           { property: 'Type', select: { equals: 'will' } },
@@ -99,8 +106,15 @@ export async function readMemoriesBySession(sessionId: string): Promise<any[]> {
       return [];
     }
 
+    const dataSourceId = await getDataSourceId(memoryDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for memory database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: memoryDbId,
+      data_source_id: dataSourceId,
       filter: {
         and: [
           { property: 'Type', select: { equals: 'memory' } },
@@ -136,8 +150,15 @@ export async function readWillBySession(sessionId: string): Promise<string[]> {
       return [];
     }
 
+    const dataSourceId = await getDataSourceId(memoryDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for memory database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: memoryDbId,
+      data_source_id: dataSourceId,
       filter: {
         and: [
           { property: 'Type', select: { equals: 'will' } },
@@ -164,18 +185,30 @@ export async function readWillBySession(sessionId: string): Promise<string[]> {
 }
 
 
-export async function readRecentMemories(limit: number = 10): Promise<any[]> {
+export async function readRecentMemories(limit: number = 10, query?: string): Promise<any[]> {
   try {
     const client = getNotionClient();
     const memoryDbId = getConfigValue('memory_db_id');
 
     if (!client || !memoryDbId) return [];
 
+    const dataSourceId = await getDataSourceId(memoryDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for memory database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: memoryDbId,
+      data_source_id: dataSourceId,
       filter: {
-        property: 'Type',
-        select: { equals: 'memory' }
+        ...(query
+        ? { and: [
+            { property: 'Type', select: { equals: 'memory' } },
+            { property: 'Content', rich_text: { contains: query } },
+          ]}
+        : { property: 'Type', select: { equals: 'memory' } }
+      )
       },
       sorts: [{
         property: 'Timestamp',
@@ -196,18 +229,30 @@ export async function readRecentMemories(limit: number = 10): Promise<any[]> {
   }
 }
 
-export async function readRecentWill(limit: number = 10): Promise<string[]> {
+export async function readRecentWill(limit: number = 10, query?: string): Promise<string[]> {
   try {
     const client = getNotionClient();
     const memoryDbId = getConfigValue('memory_db_id');
 
     if (!client || !memoryDbId) return [];
 
+    const dataSourceId = await getDataSourceId(memoryDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for memory database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: memoryDbId,
+      data_source_id: dataSourceId,
       filter: {
-        property: 'Type',
-        select: { equals: 'will' }
+        ...(query
+        ? { and: [
+            { property: 'Type', select: { equals: 'will' } },
+            { property: 'Content', rich_text: { contains: query } },
+          ]}
+        : { property: 'Type', select: { equals: 'will' } }
+      )
       },
       sorts: [{
         property: 'Timestamp',

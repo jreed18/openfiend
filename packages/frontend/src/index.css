@@ -1,9 +1,35 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+
+  --bg: #0f0e11;
+  --surface: #16141a;
+  --surface2: #1e1b24;
+  --surface3: #26222f;
+  --border: rgba(255,255,255,0.06);
+  --border-mid: rgba(255,255,255,0.11);
+  --border-strong: rgba(255,255,255,0.18);
+
+  --amber: #e89a3a;
+  --amber-dim: rgba(232,154,58,0.12);
+  --amber-border: rgba(232,154,58,0.25);
+
+  --purple: #a78bda;
+  --purple-dim: rgba(167,139,218,0.12);
+  --purple-border: rgba(167,139,218,0.25);
+
+  --green: #6bc98a;
+  --red: #e05c6a;
+  --blue: #6baee8;
+
+  --text-primary: #edeaf5;
+  --text-secondary: #8c8799;
+  --text-muted: #4e4a5a;
+
+  color: var(--text-primary);
+  background-color: var(--bg);
 }
 
 body {
@@ -11,9 +37,24 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 #root {
   width: 100%;
   margin: 0 auto;
+}
+
+/* Status pulse dot */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--green);
+  animation: status-pulse 2s ease-in-out infinite;
 }

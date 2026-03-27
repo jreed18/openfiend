@@ -10,11 +10,11 @@ import { PermissionStatus } from '@openfiend/shared';
 import type { WebSocket } from 'ws';
 
 // a map to hold pending decisions awaiting user approval
-const pendingDecisions = new Map<string, { resolve: (decision: PermissionStatus) => void }>();
+const localPendingDecisionsMap = new Map<string, { resolve: (decision: PermissionStatus) => void }>();
 
 
 export function resolveDecision(id: string, decision: PermissionStatus): void {
-    const pending = pendingDecisions.get(id);
+    const pending = localPendingDecisionsMap.get(id);
     if (!pending) {
         console.warn(`[Orchestrator] No pending decision found for ID: ${id}`);
         return;
@@ -22,7 +22,11 @@ export function resolveDecision(id: string, decision: PermissionStatus): void {
     console.log(`[Orchestrator] Resolving decision for ID ${id} with decision: ${decision}`);
     pending.resolve(decision);
     updateDecisionStatus(id, decision);
-    pendingDecisions.delete(id);
+    localPendingDecisionsMap.delete(id);
+}
+
+export function hasPendingDecisions(): boolean {
+    return localPendingDecisionsMap.size > 0;
 }
 
 export async function requestPermission(
@@ -73,7 +77,7 @@ export async function requestPermission(
         // resolveDecision() will call resolve() when frontend
         // sends back a permission_response message
         return new Promise<PermissionStatus>((resolve) => {
-            pendingDecisions.set(notionPageId, { resolve: (decision) => {
+            localPendingDecisionsMap.set(notionPageId, { resolve: (decision) => {
                 resolve(decision === 'approved' ? PermissionStatus.Approved : PermissionStatus.Rejected);
             } });
         });

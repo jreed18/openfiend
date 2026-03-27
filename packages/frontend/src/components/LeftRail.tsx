@@ -4,45 +4,34 @@ function LeftRail() {
   const { conversations, conversationId, switchConversation, startNewConversation } = useWebSocket();
 
   return (
-    <aside className="flex h-full flex-col" style={{ borderRight: '2px solid #262626' }}>
-      {/* Brand header */}
-      <div style={{ borderBottom: '2px solid #262626', position: 'relative' }} className="px-4 py-5">
-        {/* + accent */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: '4px',
-            right: '8px',
-            fontSize: '16px',
-            color: '#e11d7e',
-            opacity: 0.3,
-            fontWeight: 'bold',
-          }}
-        >
-          +
+    <aside className="flex h-full flex-col" style={{ backgroundColor: 'var(--surface)' }}>
+      {/* Title bar */}
+      <div style={{ backgroundColor: 'var(--surface2)', borderBottom: '1px solid var(--border)', height: '36px', position: 'relative' }} className="flex items-center px-4">
+        {/* Dot controls */}
+        <div className="flex items-center gap-1.5 mr-3">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
         </div>
-
-        <div
-          className="text-lg font-bold uppercase"
+        <span
           style={{
-            color: '#e11d7e',
-            fontFamily: "'Syne', sans-serif",
-            letterSpacing: '0.05em',
-            textShadow: '0 0 10px rgba(225, 29, 126, 0.4)',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'var(--text-secondary)',
+            fontFamily: "system-ui",
           }}
         >
           OpenFiend
-        </div>
-        <div
-          className="text-[10px] uppercase tracking-widest mt-1"
+        </span>
+        <span
+          className="ml-2 text-[9px] uppercase tracking-widest"
           style={{
-            color: '#525252',
-            fontFamily: "'Space Mono', monospace",
+            color: 'var(--text-muted)',
+            fontFamily: "'JetBrains Mono', monospace",
           }}
         >
           v0.1
-        </div>
+        </span>
       </div>
 
       {/* Conversation list */}
@@ -50,8 +39,8 @@ function LeftRail() {
         <p
           className="px-2 pb-2 text-[10px] uppercase tracking-widest"
           style={{
-            color: '#525252',
-            fontFamily: "'Space Mono', monospace",
+            color: 'var(--text-muted)',
+            fontFamily: "'JetBrains Mono', monospace",
           }}
         >
           Conversations
@@ -59,14 +48,14 @@ function LeftRail() {
 
         {/* Placeholder entries */}
         <ul className="space-y-1">
-          {conversations.length < 1 ? 
+          {conversations.length < 1 ?
           ['No conversations yet'].map((label, i) => (
             <li
               key={i}
               className="rounded px-3 py-2 text-xs"
               style={{
-                color: '#525252',
-                fontFamily: "'Space Mono', monospace",
+                color: 'var(--text-muted)',
+                fontFamily: "'JetBrains Mono', monospace",
               }}
             >
               {label}
@@ -81,14 +70,15 @@ function LeftRail() {
                   }}
                   className="cursor-pointer px-3 py-2 text-xs transition-all border-l-2"
                   style={{
-                    color: id === conversationId ? '#e11d7e' : '#a3a3a3',
-                    backgroundColor: id === conversationId ? '#1a1a1a' : 'transparent',
-                    borderLeftColor: id === conversationId ? '#e11d7e' : 'transparent',
-                    fontFamily: "'Space Mono', monospace",
+                    color: id === conversationId ? 'var(--purple)' : 'var(--text-secondary)',
+                    backgroundColor: id === conversationId ? 'var(--purple-dim)' : 'transparent',
+                    borderLeftColor: id === conversationId ? 'var(--purple)' : 'transparent',
+                    borderRadius: '4px',
+                    fontFamily: "'JetBrains Mono', monospace",
                   }}
                   onMouseEnter={(e) => {
                     if (id !== conversationId) {
-                      e.currentTarget.style.backgroundColor = '#1a1a1a';
+                      e.currentTarget.style.backgroundColor = 'var(--surface2)';
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -106,23 +96,24 @@ function LeftRail() {
       </nav>
 
       {/* Bottom actions */}
-      <div style={{ borderTop: '2px solid #262626' }} className="px-4 py-4">
+      <div style={{ borderTop: '1px solid var(--border)' }} className="px-4 py-4">
         <button
           onClick={startNewConversation}
           className="w-full px-3 py-2 text-left text-xs uppercase tracking-widest transition-all"
           style={{
-            color: '#e11d7e',
-            fontFamily: "'Space Mono', monospace",
-            border: '2px solid #e11d7e',
+            color: 'var(--purple)',
+            fontFamily: "'JetBrains Mono', monospace",
+            border: '1px solid var(--purple-border)',
+            borderRadius: '4px',
             backgroundColor: 'transparent',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#e11d7e';
-            e.currentTarget.style.color = '#0a0a0a';
+            e.currentTarget.style.backgroundColor = 'var(--purple-dim)';
+            e.currentTarget.style.color = 'var(--purple)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#e11d7e';
+            e.currentTarget.style.color = 'var(--purple)';
           }}
         >
           + New Chat with Bob

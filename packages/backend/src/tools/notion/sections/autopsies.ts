@@ -1,4 +1,4 @@
-import { getNotionClient } from '../client';
+import { getNotionClient, getDataSourceId } from '../client';
 import { getConfigValue } from '../setup';
 
 /**
@@ -54,8 +54,15 @@ export async function readRecentAutopsies(limit: number = 10): Promise<any[]> {
 
     console.log("[Notion] Reading recent autopsy reports...");
 
+    const dataSourceId = await getDataSourceId(autopsiesDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for autopsies database');
+      return [];
+    }
+
     const notionResult = await client.dataSources.query({
-      data_source_id: autopsiesDbId,
+      data_source_id: dataSourceId,
       sorts: [{
         property: 'Timestamp',
         direction: 'descending',
@@ -70,6 +77,9 @@ export async function readRecentAutopsies(limit: number = 10): Promise<any[]> {
 
     return notionResult.results.map((page: any) => ({
       whatHappened: page.properties['What Happened']?.title?.[0]?.text?.content || '',
+      intent: page.properties['Intent']?.rich_text?.[0]?.text?.content || '',
+      reality: page.properties['Reality']?.rich_text?.[0]?.text?.content || '',
+      learning: page.properties['Learning']?.rich_text?.[0]?.text?.content || '',
       severity: page.properties['Severity']?.select?.name || '',
       cause: page.properties['Cause']?.rich_text?.[0]?.text?.content || '',
       timestamp: page.properties['Timestamp']?.date?.start || '',
@@ -77,6 +87,55 @@ export async function readRecentAutopsies(limit: number = 10): Promise<any[]> {
 
   } catch (error: any) {
     console.error('[Notion] Failed to read autopsies: ', error.message);
+    return [];
+  }
+}
+
+export async function searchAutopsies(query: string, limit: number = 10): Promise<any[]> {
+  try {
+    const client = getNotionClient();
+    const autopsiesDbId = getConfigValue('autopsies_db_id');
+
+    if (!client || !autopsiesDbId) return [];
+
+    const dataSourceId = await getDataSourceId(autopsiesDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for autopsies database');
+      return [];
+    }
+
+    console.log(`[Notion] Searching autopsies with "${query}"...`);
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: {
+        or: [
+          { property: 'What Happened', title: { contains: query } },
+          { property: 'Cause', rich_text: { contains: query } },
+          { property: 'Learning', rich_text: { contains: query } },
+        ]
+      },
+      sorts: [{ 
+        property: 'Timestamp', 
+        direction: 'descending' 
+      }],
+      page_size: limit,
+    });
+
+    if (!notionResult) return [];
+
+    return notionResult.results.map((page: any) => ({
+      whatHappened: page.properties['What Happened']?.title?.[0]?.text?.content || '',
+      intent: page.properties['Intent']?.rich_text?.[0]?.text?.content || '',
+      reality: page.properties['Reality']?.rich_text?.[0]?.text?.content || '',
+      cause: page.properties['Cause']?.rich_text?.[0]?.text?.content || '',
+      learning: page.properties['Learning']?.rich_text?.[0]?.text?.content || '',
+      severity: page.properties['Severity']?.select?.name || '',
+      timestamp: page.properties['Timestamp']?.date?.start || '',
+    }));
+  } catch (error: any) {
+    console.error(`[Notion] Failed to search autopsies: ${error.message}`);
     return [];
   }
 }

@@ -9,6 +9,10 @@ interface PermissionRequest {
 
 interface WebSocketContextType {
   connectionStatus: "connecting" | "connected" | "disconnected" | "error",
+  systemInfo: {
+    model: string,
+    provider: string,
+  },
   messages: Message[],
   auditLogs: AuditLogEntry[],
   currentPermissionRequest: PermissionRequest | null,
@@ -41,6 +45,7 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [messages, setMessages] = useState<Message[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [systemInfo, setSystemInfo] = useState({ model: 'claude-haiku-4-5', provider: 'anthropic' });
   const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -99,6 +104,22 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
           console.error('Server error:', parsedMessage.message);
         } else if (parsedMessage.type === 'audit_log') {
           setAuditLogs(prev => [...prev, parsedMessage.entry])
+        } else if (parsedMessage.type === 'system_info') {
+          setSystemInfo({
+            model: parsedMessage.model,
+            provider: parsedMessage.provider,
+          });
+        } else if (parsedMessage.type === 'decision_approved' || parsedMessage.type === 'decision_rejected') {
+          const { decision } = parsedMessage;
+          const newStatus = parsedMessage.type === 'decision_approved' ? 'approved' : 'rejected';
+
+          // update the tool call status (same as clicking the allow / reject in UI)
+          setToolCalls(prev => prev.map(x => x.id === decision.pageId ? { ...x, status: newStatus } : x ));
+
+          // remove after delay so user sees the status change in the UI
+          setTimeout(() => {
+            setToolCalls(prev => prev.filter(x => x.id !== decision.pageId));
+          }, 2000);
         }
       } catch (err) {
         console.error('Failed to parse message:', err);
@@ -157,6 +178,11 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
       
       // update toolCalls with new approved info
       setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'approved' } : x ));
+
+      // remove after a delay to allow user to see the approved status in the UI
+      setTimeout(() => {
+        setToolCalls(prev => prev.filter(x => x.id !== id));
+      }, 2000);
     }
   }, [ws, toolCalls]);
 
@@ -177,6 +203,11 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
       }));
 
       setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'rejected'} : x ));
+
+      // remove after a delay to allow user to see the rejected status in the UI
+      setTimeout(() => {
+        setToolCalls(prev => prev.filter(x => x.id !== id));
+      }, 2000);
     }
   }, [ws, toolCalls]);
 
@@ -202,6 +233,7 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
 
   const value: WebSocketContextType = {
     connectionStatus,
+    systemInfo,
     messages,
     auditLogs,
     currentPermissionRequest,

@@ -14,6 +14,7 @@
     "@ai-sdk/anthropic": "^3.0.46",
     "@ai-sdk/groq": "^3.0.29",
     "@ai-sdk/openai": "latest",
+    "@mozilla/readability": "^0.6.0",
     "@notionhq/client": "^5.14.0",
     "@openfiend/shared": "workspace:*",
     "ai": "^6.0.97",
@@ -23,6 +24,9 @@
     "drizzle-orm": "^0.45.1",
     "express": "latest",
     "express-ws": "latest",
+    "jsdom": "^29.0.1",
+    "node-fetch": "^3.3.2",
+    "turndown": "^7.2.2",
     "wscat": "^6.1.0",
     "zod": "^4.3.6"
   },
@@ -30,7 +34,9 @@
     "@types/better-sqlite3": "latest",
     "@types/express": "latest",
     "@types/express-ws": "latest",
+    "@types/jsdom": "^28.0.1",
     "@types/node": "latest",
+    "@types/turndown": "^5.0.6",
     "drizzle-kit": "^0.31.9",
     "tsx": "latest",
     "typescript": "latest"

@@ -3,8 +3,7 @@ import { useWebSocket } from '../context/WebSocketContext'
 import LeftRail from './LeftRail';
 import AuditTrail from './AuditTrail';
 import ToolDock from './ToolDock';
-
-const GRAIN_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E")`;
+import BobStatus from './BobStatus';
 
 function Chat() {
   const [message, setMessage] = useState('');
@@ -17,7 +16,6 @@ function Chat() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    // When an agent_response arrives, stop waiting
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && 'type' in lastMsg && lastMsg.type === 'agent_response') {
       setIsWaiting(false);
@@ -36,47 +34,30 @@ function Chat() {
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!message.trim()) return;
-
-    // send only current message (backend tracks full history via conversationId)
     const chatHistory = [...chatMessages, message.trim()];
     send(message.trim(), conversationId);
     setChatMessages(chatHistory);
     setIsWaiting(true);
-
-    // clear input field
     setMessage('');
   };
 
   return (
     <>
-      {/* Google Font — Syne + Space Mono */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono&display=swap');
-
-        /* Themed scrollbars */
-        .openfiend-scroll::-webkit-scrollbar {
-          width: 8px;
-        }
-        .openfiend-scroll::-webkit-scrollbar-track {
-          background: #0a0a0a;
-        }
+        .openfiend-scroll::-webkit-scrollbar { width: 6px; }
+        .openfiend-scroll::-webkit-scrollbar-track { background: transparent; }
         .openfiend-scroll::-webkit-scrollbar-thumb {
-          background: #e11d7e;
-          border-radius: 0px;
-          box-shadow: 0 0 8px rgba(225, 29, 126, 0.6);
+          background: var(--purple);
+          border-radius: 3px;
         }
         .openfiend-scroll::-webkit-scrollbar-thumb:hover {
-          background: #f97316;
-          box-shadow: 0 0 12px rgba(249, 115, 22, 0.8);
+          background: var(--amber);
         }
-
-        /* Firefox */
         .openfiend-scroll {
-          scrollbar-color: #e11d7e #0a0a0a;
+          scrollbar-color: var(--purple) transparent;
           scrollbar-width: thin;
         }
 
-        /* Thinking pulse */
         @keyframes thinking-pulse {
           0%, 80%, 100% { opacity: 0.2; }
           40% { opacity: 1; }
@@ -84,230 +65,105 @@ function Chat() {
         .thinking-dot:nth-child(1) { animation: thinking-pulse 1.4s 0s infinite; }
         .thinking-dot:nth-child(2) { animation: thinking-pulse 1.4s 0.2s infinite; }
         .thinking-dot:nth-child(3) { animation: thinking-pulse 1.4s 0.4s infinite; }
-
-        /* Neon glow */
-        @keyframes neon-glow {
-          0%, 100% { text-shadow: 0 0 10px #e11d7e, 0 0 20px #e11d7e80; }
-          50% { text-shadow: 0 0 15px #e11d7e, 0 0 30px #e11d7e; }
-        }
-        .neon-text {
-          animation: neon-glow 3s infinite;
-        }
-
-        /* Message glow */
-        @keyframes bob-glow {
-          0%, 100% { box-shadow: -3px 3px 0 #e11d7e, 0 0 12px rgba(225, 29, 126, 0.3); }
-          50% { box-shadow: -3px 3px 0 #e11d7e, 0 0 20px rgba(225, 29, 126, 0.5); }
-        }
-        .msg-bob { animation: bob-glow 4s infinite; }
-
-        @keyframes user-glow {
-          0%, 100% { box-shadow: -3px 3px 0 #f97316, 0 0 12px rgba(249, 115, 22, 0.3); }
-          50% { box-shadow: -3px 3px 0 #f97316, 0 0 20px rgba(249, 115, 22, 0.5); }
-        }
-        .msg-user { animation: user-glow 4s infinite; }
       `}</style>
 
+      {/* Desktop surface */}
       <div
-        className="relative grid h-screen w-screen overflow-hidden"
+        className="grid h-screen w-screen gap-3 p-3 overflow-hidden"
         style={{
-          backgroundColor: '#0a0a0a',
-          backgroundImage: GRAIN_SVG,
-          fontFamily: "'Syne', sans-serif",
-          gridTemplateColumns: '260px 1fr 300px',
+          backgroundColor: 'var(--bg)',
+          gridTemplateColumns: '200px 1fr 260px',
+          fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        {/* Gradient overlay (subtle magenta glow on edges) */}
+        {/* ─── Left Rail Window ─── */}
         <div
-          aria-hidden="true"
+          className="flex flex-col overflow-hidden"
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '200px',
-            background: 'linear-gradient(180deg, rgba(225, 29, 126, 0.03) 0%, transparent 100%)',
-            pointerEvents: 'none',
-            zIndex: 1,
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
           }}
-        />
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '150px',
-            background: 'linear-gradient(180deg, transparent 0%, rgba(249, 115, 22, 0.02) 100%)',
-            pointerEvents: 'none',
-            zIndex: 1,
-          }}
-        />
-        {/* Magenta accent strip — far left edge with glow */}
-        <div
-          aria-hidden="true"
-          className="absolute left-0 top-0 z-20 h-full"
-          style={{
-            backgroundColor: '#e11d7e',
-            width: '3px',
-            boxShadow: '0 0 15px rgba(225, 29, 126, 0.6), inset 0 0 10px rgba(225, 29, 126, 0.3)',
-          }}
-        />
+        >
+          <LeftRail />
+        </div>
 
-        {/* Vertical dividers with glow */}
+        {/* ─── Chat Window ─── */}
         <div
-          aria-hidden="true"
+          className="relative flex flex-col overflow-hidden"
           style={{
-            position: 'absolute',
-            left: '260px',
-            top: 0,
-            bottom: 0,
-            width: '1px',
-            backgroundColor: '#262626',
-            boxShadow: '0 0 8px rgba(225, 29, 126, 0.2)',
-            zIndex: 10,
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
           }}
-        />
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            right: '300px',
-            top: 0,
-            bottom: 0,
-            width: '1px',
-            backgroundColor: '#262626',
-            boxShadow: '0 0 8px rgba(249, 115, 22, 0.2)',
-            zIndex: 10,
-          }}
-        />
-
-        {/* ─── Left Rail ─── */}
-        <LeftRail />
-
-        {/* ─── Center Panel — Streaming Chat ─── */}
-        <main className="relative flex flex-col overflow-hidden">
-          {/* Tool call dock */}
-          <ToolDock />
-          
-          {/* Structural top accent */}
-          <div style={{ borderBottom: '2px solid #e11d7e', height: '1px' }} />
+        >
+          {/* Title bar */}
+          <div
+            className="flex items-center px-4 shrink-0"
+            style={{
+              backgroundColor: 'var(--surface2)',
+              borderBottom: '1px solid var(--border)',
+              height: '36px',
+            }}
+          >
+            {/* Dot controls */}
+            <div className="flex items-center gap-1.5 mr-3">
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+            </div>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                fontFamily: 'system-ui',
+              }}
+            >
+              Chat with Bob
+            </span>
+            {/* Status badge */}
+            <span
+              className="ml-auto text-[9px] uppercase tracking-widest px-2 py-0.5"
+              style={{
+                color: isWaiting ? 'var(--amber)' : 'var(--green)',
+                backgroundColor: isWaiting ? 'var(--amber-dim)' : 'rgba(107,201,138,0.12)',
+                borderRadius: '4px',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {isWaiting ? 'Thinking' : 'Ready'}
+            </span>
+          </div>
 
           {/* Message area */}
-          <div className="openfiend-scroll flex-1 overflow-y-auto px-8 py-8 relative">
-            {/* Structural grid overlay (subtle) */}
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `linear-gradient(0deg, transparent 24%, #262626 25%, #262626 26%, transparent 27%, transparent 74%, #262626 75%, #262626 76%, transparent 77%, transparent),
-                                 linear-gradient(90deg, transparent 24%, #262626 25%, #262626 26%, transparent 27%, transparent 74%, #262626 75%, #262626 76%, transparent 77%, transparent)`,
-                backgroundSize: '100px 100px',
-                opacity: 0.02,
-                pointerEvents: 'none',
-              }}
-            />
+          <div className="openfiend-scroll flex-1 overflow-y-auto px-6 py-6 relative">
             {messages.length === 0 ? (
               /* Empty-state hero */
-              <div className={`${chatMessages.length > 0 ? 'hidden' : ''} flex h-full flex-col items-start justify-center relative`}>
-                {/* + corner accent */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    top: '-20px',
-                    right: '40px',
-                    fontSize: '48px',
-                    color: '#f97316',
-                    opacity: 0.3,
-                    fontWeight: 'bold',
-                    fontFamily: "'Syne', sans-serif",
-                  }}
-                >
-                  +
-                </div>
-
+              <div className={`${chatMessages.length > 0 ? 'hidden' : ''} flex h-full flex-col items-center justify-center`}>
                 <h1
-                  className="mb-2 text-5xl font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:text-6xl neon-text"
-                  style={{
-                    transform: 'skewY(-2deg)',
-                  }}
+                  className="mb-2 text-4xl font-extrabold uppercase tracking-tight"
+                  style={{ color: 'var(--text-primary)' }}
                 >
-                  Talk to
-                  <br />
-                  <span style={{ color: '#e11d7e' }}>the fiend.</span>
+                  Talk to{' '}
+                  <span style={{ color: 'var(--purple)' }}>the fiend.</span>
                 </h1>
                 <p
-                  className="mt-2 max-w-md text-sm leading-relaxed"
+                  className="mt-2 max-w-md text-sm leading-relaxed text-center"
                   style={{
-                    color: '#737373',
-                    fontFamily: "'Space Mono', monospace",
+                    color: 'var(--text-secondary)',
+                    fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
                   Every action visible. Every permission explicit.
                   <br />
                   No black boxes.
                 </p>
-
-                {/* Decorative specs */}
                 <div
-                  aria-hidden="true"
+                  className="mt-6 text-[10px] uppercase tracking-widest"
                   style={{
-                    position: 'absolute',
-                    top: '60px',
-                    right: '80px',
-                    width: '4px',
-                    height: '4px',
-                    borderRadius: '50%',
-                    backgroundColor: '#e11d7e',
-                    opacity: 0.4,
-                    boxShadow: '0 0 8px #e11d7e',
-                  }}
-                />
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    bottom: '120px',
-                    right: '60px',
-                    width: '3px',
-                    height: '3px',
-                    borderRadius: '50%',
-                    backgroundColor: '#f97316',
-                    opacity: 0.3,
-                    boxShadow: '0 0 6px #f97316',
-                  }}
-                />
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    bottom: '200px',
-                    left: '80px',
-                    width: '2px',
-                    height: '2px',
-                    borderRadius: '50%',
-                    backgroundColor: '#e11d7e',
-                    opacity: 0.3,
-                    boxShadow: '0 0 4px #e11d7e',
-                  }}
-                />
-
-                {/* System status */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    left: '0',
-                    fontSize: '10px',
-                    color: '#404040',
-                    fontFamily: "'Space Mono', monospace",
-                    letterSpacing: '0.1em',
+                    color: 'var(--text-muted)',
+                    fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
                   [SYSTEM READY] [AWAITING INPUT]
@@ -315,81 +171,77 @@ function Chat() {
               </div>
             ) : (
               /* Messages list */
-              <div className="mx-auto max-w-2xl space-y-5">
+              <div className="mx-auto max-w-2xl space-y-4">
                 {messages
                   .filter((msg): msg is Extract<typeof msg, { content: string }> => 'content' in msg)
                   .map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`flex items-end gap-3 ${msg.type === 'user_input' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex items-start gap-3 ${msg.type === 'user_input' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {/* Bob avatar */}
+                    {/* Bob label */}
                     {msg.type !== 'user_input' && (
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center text-[10px] font-bold uppercase"
+                      <span
+                        className="shrink-0 text-[9px] font-bold uppercase tracking-widest mt-1"
                         style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '2px solid #e11d7e',
-                          color: '#e11d7e',
-                          fontFamily: "'Space Mono', monospace",
+                          color: 'var(--amber)',
+                          fontFamily: "'JetBrains Mono', monospace",
                         }}
                       >
-                        B
-                      </div>
+                        BOB
+                      </span>
                     )}
                     <div
-                      className={`max-w-lg px-4 py-3 ${msg.type === 'user_input' ? 'msg-user' : 'msg-bob'}`}
+                      className="max-w-lg px-4 py-3"
                       style={{
-                        backgroundColor: msg.type === 'user_input' ? '#e11d7e' : '#1a1a1a',
-                        color: msg.type === 'user_input' ? '#fff' : '#d4d4d4',
-                        border: msg.type === 'user_input' ? '2px solid #f97316' : '2px solid #e11d7e',
-                        fontFamily: "'Space Mono', monospace",
+                        backgroundColor: msg.type === 'user_input' ? 'var(--purple-dim)' : 'var(--amber-dim)',
+                        color: 'var(--text-primary)',
+                        borderLeft: msg.type === 'user_input' ? '2px solid var(--purple-border)' : '2px solid var(--amber-border)',
+                        borderRadius: '6px',
+                        fontFamily: "'JetBrains Mono', monospace",
                         fontSize: '13px',
-                        lineHeight: '1.6',
+                        lineHeight: '1.65',
                       }}
                     >
                       {msg.content}
                     </div>
-                    {/* You avatar */}
+                    {/* You label */}
                     {msg.type === 'user_input' && (
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center text-[10px] font-bold uppercase"
+                      <span
+                        className="shrink-0 text-[9px] font-bold uppercase tracking-widest mt-1"
                         style={{
-                          backgroundColor: '#e11d7e',
-                          border: '2px solid #f97316',
-                          color: '#0a0a0a',
-                          fontFamily: "'Space Mono', monospace",
+                          color: 'var(--purple)',
+                          fontFamily: "'JetBrains Mono', monospace",
                         }}
                       >
-                        U
-                      </div>
+                        YOU
+                      </span>
                     )}
                   </div>
                 ))}
                 {/* Thinking indicator */}
                 {isWaiting && (
-                  <div className="flex items-end gap-3">
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-[10px] font-bold uppercase"
+                  <div className="flex items-start gap-3">
+                    <span
+                      className="shrink-0 text-[9px] font-bold uppercase tracking-widest mt-1"
                       style={{
-                        backgroundColor: '#1a1a1a',
-                        border: '2px solid #e11d7e',
-                        color: '#e11d7e',
-                        fontFamily: "'Space Mono', monospace",
+                        color: 'var(--amber)',
+                        fontFamily: "'JetBrains Mono', monospace",
                       }}
                     >
-                      B
-                    </div>
+                      BOB
+                    </span>
                     <div
-                      className="msg-bob flex gap-1.5 px-4 py-3"
+                      className="flex gap-1.5 px-4 py-3"
                       style={{
-                        backgroundColor: '#1a1a1a',
-                        border: '2px solid #262626',
+                        backgroundColor: 'var(--surface2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
                       }}
                     >
-                      <span className="thinking-dot h-2 w-2" style={{ backgroundColor: '#f97316', boxShadow: '0 0 4px #f97316' }} />
-                      <span className="thinking-dot h-2 w-2" style={{ backgroundColor: '#f97316', boxShadow: '0 0 4px #f97316' }} />
-                      <span className="thinking-dot h-2 w-2" style={{ backgroundColor: '#f97316', boxShadow: '0 0 4px #f97316' }} />
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--amber)' }} />
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--amber)' }} />
+                      <span className="thinking-dot h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--amber)' }} />
                     </div>
                   </div>
                 )}
@@ -398,37 +250,56 @@ function Chat() {
             )}
           </div>
 
-          {/* Input bar — pinned to bottom */}
-          <div style={{ borderTop: '2px solid #262626', position: 'relative' }} className="px-8 py-5">
-            {/* + accent */}
-            <div
-              aria-hidden="true"
+          {/* Status bar */}
+          <div
+            className="flex items-center gap-2 px-4 shrink-0"
+            style={{
+              height: '24px',
+              borderTop: '1px solid var(--border)',
+              backgroundColor: 'var(--surface2)',
+            }}
+          >
+            <span
+              className="text-[9px] tracking-widest"
               style={{
-                position: 'absolute',
-                top: '-12px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                fontSize: '20px',
-                color: '#f97316',
-                opacity: 0.4,
-                fontWeight: 'bold',
+                color: 'var(--text-muted)',
+                fontFamily: "'JetBrains Mono', monospace",
               }}
             >
-              +
-            </div>
+              {messages.filter(m => 'content' in m).length} msgs
+            </span>
+            <span style={{ color: 'var(--border-mid)' }}>&middot;</span>
+            <span
+              className="text-[9px] tracking-widest"
+              style={{
+                color: 'var(--text-muted)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              claude-sonnet-4
+            </span>
+            <span style={{ color: 'var(--border-mid)' }}>&middot;</span>
+            <span
+              className="text-[9px] tracking-widest"
+              style={{
+                color: isWaiting ? 'var(--amber)' : 'var(--green)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {isWaiting ? 'awaiting response' : 'idle'}
+            </span>
+          </div>
 
-            <form onSubmit={handleSubmit} className="mx-auto max-w-2xl">
+          {/* Input bar */}
+          <div className="px-4 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+            <form onSubmit={handleSubmit}>
               <div
-                className="flex items-center gap-3 border px-4 py-3 transition-colors relative"
+                className="flex items-center gap-3 px-3 py-2"
                 style={{
-                  backgroundColor: '#111111',
-                  borderColor: '#333',
-                  borderWidth: '2px',
-                  boxShadow: 'inset 0 0 8px rgba(249, 115, 22, 0.1), 0 0 0 rgba(249, 115, 22, 0)',
-                  transition: 'box-shadow 0.3s ease',
+                  backgroundColor: 'var(--surface2)',
+                  border: '1px solid var(--border-mid)',
+                  borderRadius: '6px',
                 }}
-                onFocus={() => {}}
-                onBlur={() => {}}
               >
                 <input
                   ref={inputRef}
@@ -437,37 +308,34 @@ function Chat() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="say something to bob..."
                   aria-label="Message input"
-                  className="flex-1 bg-transparent text-sm text-white placeholder-neutral-600 outline-none"
-                  style={{ fontFamily: "'Space Mono', monospace" }}
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: 'var(--text-primary)',
+                  }}
                   disabled={isWaiting}
                 />
                 <button
                   type="submit"
                   disabled={!message.trim() || isWaiting}
                   aria-label="Send message"
-                  className="shrink-0 px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all duration-150 active:scale-95"
+                  className="shrink-0 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
                   style={{
-                    backgroundColor: '#f97316',
-                    color: '#000',
-                    border: '2px solid #f97316',
-                    fontFamily: "'Syne', sans-serif",
-                    opacity: isWaiting || !message.trim() ? 0.5 : 1,
-                    boxShadow: '0 0 0 rgba(249, 115, 22, 0)',
+                    backgroundColor: 'var(--purple)',
+                    color: 'var(--bg)',
+                    borderRadius: '4px',
+                    border: 'none',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    opacity: isWaiting || !message.trim() ? 0.4 : 1,
                   }}
                   onMouseEnter={(e) => {
                     if (!isWaiting && message.trim()) {
-                      e.currentTarget.style.backgroundColor = '#e11d7e';
-                      e.currentTarget.style.borderColor = '#e11d7e';
-                      e.currentTarget.style.color = '#fff';
-                      e.currentTarget.style.boxShadow = '0 0 15px rgba(225, 29, 126, 0.6)';
+                      e.currentTarget.style.backgroundColor = 'var(--amber)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isWaiting && message.trim()) {
-                      e.currentTarget.style.backgroundColor = '#f97316';
-                      e.currentTarget.style.borderColor = '#f97316';
-                      e.currentTarget.style.color = '#000';
-                      e.currentTarget.style.boxShadow = '0 0 0 rgba(249, 115, 22, 0)';
+                      e.currentTarget.style.backgroundColor = 'var(--purple)';
                     }
                   }}
                 >
@@ -475,45 +343,38 @@ function Chat() {
                 </button>
               </div>
             </form>
-
-            {/* Footer hints */}
-            <div className="mx-auto mt-3 flex max-w-2xl justify-between relative">
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  left: 0,
-                  right: 0,
-                  height: '1px',
-                  borderTop: '1px dashed #262626',
-                }}
-              />
-              <p
-                className="text-[10px]"
-                style={{
-                  color: '#404040',
-                  fontFamily: "'Space Mono', monospace",
-                  letterSpacing: '0.05em',
-                }}
-              >
-                // SECURITY-FIRST AGENT
-              </p>
-              <p
-                className="text-[10px]"
-                style={{
-                  color: '#404040',
-                  fontFamily: "'Space Mono', monospace",
-                  letterSpacing: '0.05em',
-                }}
-              >
-                ESC TO CLEAR //
-              </p>
-            </div>
           </div>
-        </main>
+        </div>
 
-        {/* ─── Right Panel — Audit Trail ─── */}
-        <AuditTrail />
+        {/* ─── Right Column: Audit Trail + Bob Status ─── */}
+        <div className="flex flex-col gap-3 overflow-hidden">
+          {/* Audit Trail Window */}
+          <div
+            className="flex flex-col flex-1 min-h-0 overflow-hidden"
+            style={{
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+            }}
+          >
+            <AuditTrail />
+          </div>
+
+          {/* Bob Status Window */}
+          <div
+            className="flex flex-col shrink-0 overflow-hidden"
+            style={{
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+            }}
+          >
+            <BobStatus />
+          </div>
+        </div>
+
+        {/* ─── Permission Modal (floats over desktop) ─── */}
+        <ToolDock />
       </div>
     </>
   );

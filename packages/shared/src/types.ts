@@ -37,6 +37,11 @@ export const MessageSchema = z.union([
       input: z.string(),
       output: z.string(),
     })
+  }),
+  z.object({
+    type: z.literal('system_info'),
+    model: z.string(),
+    provider: z.string(),
   })
 ]);
 

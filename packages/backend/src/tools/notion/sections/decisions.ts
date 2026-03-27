@@ -1,4 +1,4 @@
-import { getNotionClient } from '../client';
+import { getNotionClient, getDataSourceId } from '../client';
 import { getConfigValue } from '../setup';
 
 /**
@@ -9,6 +9,21 @@ import { getConfigValue } from '../setup';
  * User approves or rejects in Notion, Bob polls for status.
  */
 
+export type DecisionStatus = 'pending_approval' | 'approved' | 'rejected';
+
+export interface NotionDecision {
+  pageId: string;
+  action: string;
+  reasoning: string;
+  risks: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  status: DecisionStatus;
+  conversationId: string;
+  annotation: string;
+  timestamp: string;
+  tool: string;
+}
+
 // Creates a new decision page in Notion with status "pending_approval"
 // Returns the page ID for tracking
 export async function writeDecision(data: {
@@ -16,7 +31,7 @@ export async function writeDecision(data: {
   reasoning: string;
   risks: string;
   riskLevel: 'low' | 'medium' | 'high';
-  status: 'pending_approval' | 'approved' | 'rejected';
+  status: DecisionStatus;
   conversationId: string;
   annotation: string;
   timeStart: string;
@@ -70,28 +85,52 @@ export async function writeDecision(data: {
   }
 }
 
-export async function readPendingDecisions(): Promise<any[]> {
+// Sliding window: only fetch decisions edited since last successful poll
+let lastPollTimestamp = new Date(Date.now() - 60_000).toISOString();
+
+export async function readPendingDecisions(): Promise<NotionDecision[]> {
   try {
     const client = getNotionClient();
     const decisionsDbId = getConfigValue('decisions_db_id');
 
     if (!client || !decisionsDbId) return [];
 
+    const dataSourceId = await getDataSourceId(decisionsDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for decisions database');
+      return [];
+    }
+
     console.log('[Notion] Reading pending decisions...');
 
     const notionResult = await client.dataSources.query({
-      data_source_id: decisionsDbId,
+      data_source_id: dataSourceId,
       filter: {
-        property: 'Status',
-        select: {
-          equals: 'pending_approval',
-        }
+        and: [
+          {
+            or: [
+              { property: 'Status', select: { equals: 'pending_approval' } },
+              { property: 'Status', select: { equals: 'approved' } },
+              { property: 'Status', select: { equals: 'rejected' } },
+            ],
+          },
+          {
+            timestamp: 'last_edited_time',
+            last_edited_time: { on_or_after: lastPollTimestamp },
+          },
+        ],
       },
       sorts: [{
-        property: 'Timestamp',
+        timestamp: 'last_edited_time',
         direction: 'descending',
       }]
     });
+
+    // Advance the sliding window
+    if (notionResult.results.length > 0) {
+      lastPollTimestamp = (notionResult.results[0] as any).last_edited_time;
+    }
 
     return notionResult.results.map((page: any) => ({
       pageId: page.id,
