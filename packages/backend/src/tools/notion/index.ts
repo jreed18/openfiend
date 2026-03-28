@@ -23,3 +23,6 @@ export { writeThreat, readRecentThreats } from './sections/threats';
 
 // Shadow functions
 export { writeShadowObservation, readShadowObservations, markShadowAsEnabled } from './sections/shadow';
+
+// Tasks functions
+export { writeTask, readPendingTasks, updateTaskStatus } from './sections/tasks';

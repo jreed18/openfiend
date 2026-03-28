@@ -105,7 +105,7 @@ interface ResponseFormat {
 export async function getStreamedResponse(prompt: string): Promise<ResponseFormat> {
     const agent = new ToolLoopAgent({
         model: provider === 'anthropic' ? anthropic('claude-haiku-4-5') : groq('llama-3.1-8b-instant'),
-        instructions: prompts.system,
+        instructions: `${prompts.system}\n\nCurrent time: ${new Date().toISOString()} (UTC). User's timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} (UTC${new Date().getTimezoneOffset() <= 0 ? '+' : '-'}${Math.abs(new Date().getTimezoneOffset() / 60)}). Always schedule tasks in UTC.`,
         tools: {
             webSearch: anthropic.tools.webSearch_20250305(),
         }
@@ -132,7 +132,7 @@ export async function getStreamedResponseFullHistory(
 ): Promise<ResponseFormat> {
     const agent = new ToolLoopAgent({
         model: provider === 'anthropic' ? anthropic('claude-haiku-4-5') : groq('llama-3.1-8b-instant'),
-        instructions: prompts.system,
+        instructions: `${prompts.system}\n\nCurrent time: ${new Date().toISOString()} (UTC). User's timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} (UTC${new Date().getTimezoneOffset() <= 0 ? '+' : '-'}${Math.abs(new Date().getTimezoneOffset() / 60)}). Always schedule tasks in UTC.`,
         tools: {
             ...tools,
         }

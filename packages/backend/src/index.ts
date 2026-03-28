@@ -128,7 +128,7 @@ wsApp.ws('/ws', (ws, _req) => {
 
       const response = await getStreamedResponseFullHistory(
         history.filter(msg => 'content' in msg),
-        tools
+        tools,
       );
 
       // add response to history
@@ -169,6 +169,7 @@ wsApp.ws('/ws', (ws, _req) => {
           }
         }));
       }
+
     } catch (error) {
         console.error(`Error: ${error}`);
         ws.send(JSON.stringify({
@@ -221,28 +222,43 @@ const broadcastToClients = (message: unknown) => {
 }
 
 // Start server
-try {
-  wsApp.listen(PORT, () => {
-    console.log(`OPENFIEND backend running on http://localhost:${PORT}`);
+const server = wsApp.listen(PORT, () => {
+  console.log(`OPENFIEND backend running on http://localhost:${PORT}`);
 
-    // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
-    console.log(`[Notion] Initializing Bob's brain structure...`);
-    initializeNotionWorkspace();
-    startNotionPolling(broadcastToClients);
-    console.log(`[Notion] Initialization complete. Started polling for decision updates.`);
-  });
-} catch (err) {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-}
+  // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
+  console.log(`[Notion] Initializing Bob's brain structure...`);
+  initializeNotionWorkspace();
+
+  // getFirstClient returns an open WS connection for tools that need to send messages (e.g. permission requests)
+  const getFirstClient = (): WebSocket | null => {
+    for (const client of wsInstance.getWss().clients) {
+      if (client.readyState === WebSocket.OPEN) return client as unknown as WebSocket;
+    }
+    return null;
+  };
+
+  startNotionPolling(broadcastToClients, getFirstClient);
+  console.log(`[Notion] Initialization complete. Started polling for decision updates.`);
+});
+
+// Graceful shutdown — release the port so tsx watch restarts cleanly
+const shutdown = () => {
+  console.log('Shutting down server...');
+  server.close(() => process.exit(0));
+  // Force exit after 2s if connections won't close
+  setTimeout(() => process.exit(0), 2000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 // Catch unhandled errors
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
-  process.exit(1);
+  server.close(() => process.exit(1));
+  setTimeout(() => process.exit(1), 2000);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled rejection at:', promise, 'reason:', reason);
-  process.exit(1);
 });

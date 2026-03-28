@@ -4,8 +4,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "predev": "mkdir -p .openfiend && drizzle-kit push",
-    "dev": "tsx watch src/index.ts",
+    "predev": "node -e \"require('fs').mkdirSync('.openfiend',{recursive:true})\" && drizzle-kit push",
+    "kill-port": "node -e \"try{const r=require('child_process').execSync('netstat -ano',{encoding:'utf8'});const m=r.match(/:3737\\s.*LISTENING\\s+(\\d+)/);if(m){process.kill(+m[1]);console.log('Killed PID '+m[1])}}catch{}\"",
+    "dev": "pnpm kill-port && tsx watch src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "start": "node dist/index.js"

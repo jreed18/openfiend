@@ -46,11 +46,7 @@ export async function writeShadowObservation(data: {
   }
 }
 
-// TODO: Implement readShadowObservations()
-// - Retrieves shadow_db_id from notion_config
-// - Queries shadow-log database for Enabled = false (unapproved)
-// - Returns array: { pageId, wouldHaveDone, tool, input, timestamp }
-// - User will review these and check Enabled to approve
+//  Retrieves shadow_db_id from notion_config
 export async function readShadowObservations(): Promise<any[]> {
   try {
     const client = getNotionClient();

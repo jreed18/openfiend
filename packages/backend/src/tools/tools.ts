@@ -8,6 +8,7 @@ import { readRecentAutopsies } from '@backend/tools/notion/sections/autopsies'
 import { scrapeUrl } from '@backend/tools/utils';
 import { PermissionStatus } from '@openfiend/shared';
 import { requestPermission } from '@backend/orchestration/orchestrator';
+import { readPendingTasks, updateTaskStatus, writeTask } from '@backend/tools/notion/sections/tasks';
 
 
 // 
@@ -39,7 +40,7 @@ import { requestPermission } from '@backend/orchestration/orchestrator';
 export function createTools(ws: WebSocket, conversationId: string) {
     return {
         assessPermission: tool({
-            description: 'Request user approval before taking a risky action. You MUST use this before executing shell commands, file writes or any destructive operation.',
+            description: prompts.assessPermissionTool,
             inputSchema: z.object({
                 toolName: z.string().describe('The tool you want to use'),
                 action: z.string().describe('What you intend to do, in plain English'),
@@ -84,7 +85,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         runShell: tool({
-            description: 'Execute a shell command on the server. This is a powerful tool that can do anything from listing files to running scripts. ALWAYS use assessPermission before this tool.',
+            description: prompts.runShellTool,
             inputSchema: z.object({
                 command: z.string().describe('The shell command to execute, including any arguments. For example: "ls -la /home/user" or "python script.py --arg value"'),
                 cwd: z.string().optional().describe('The working directory to execute the command in. If not specified, defaults to the server\'s home directory. For example: "/home/user/projects"'),
@@ -113,7 +114,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         recall: tool({
-            description: 'Search your memory and will. Use when you need to remember something or check your principles.',
+            description: prompts.recallTool,
             inputSchema: z.object({
                 query: z.string().optional().describe('Keyword to search for. Leave empty for most recent.'),
                 source: z.enum(['memory', 'will', 'both']).default('both').describe('Which store to search.'),
@@ -134,7 +135,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         remember: tool({
-            description: 'Write a new memory or will statement. Use this to remember important information or set principles for yourself.',
+            description: prompts.rememberTool,
             inputSchema: z.object({
                 content: z.string().describe('The content of the memory or will statement. Be clear and concise.'),
                 type: z.enum(['memory', 'will']).describe('Whether this is a memory (something that happened) or a will statement (a principle or intention).'),
@@ -154,7 +155,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         writeAutopsy: tool({
-            description: 'Write an autopsy report to the autopsy database. This is for recording post-mortem analysis of failures or incidents. Maintain your voice and communication style when writing these records.',
+            description: prompts.writeAutopsyTool,
             inputSchema: z.object({
                 whatHappened: z.string().describe('Describe the incident or failure in detail. What exactly went wrong?'),
                 intent: z.string().describe('Describe the intent behind the actions that led to the incident. What were you trying to achieve?'),
@@ -190,7 +191,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         getAutopsy: tool({
-            description: 'Retrieve recent autopsy reports. Use this to review past incidents and learn from them.',
+            description: prompts.getAutopsyTool,
             inputSchema: z.object({
                 limit: z.number().optional().describe('How many recent autopsy reports to retrieve. Default is 10.'),
             }),
@@ -215,7 +216,7 @@ export function createTools(ws: WebSocket, conversationId: string) {
             }
         }),
         summarizeUrl: tool({
-                description: 'Fetch a URL and return its text content. Use for reading docs, articles, or any web page.',
+                description: prompts.summarizeUrlTool,
                 inputSchema: z.object({
                     url: z.string().describe('The URL of the web page to summarize. For example: "https://en.wikipedia.org/wiki/OpenAI"'),
                 }),
@@ -245,18 +246,52 @@ export function createTools(ws: WebSocket, conversationId: string) {
                     }
                 }
         }),
+        checkTasks: tool({
+            description: prompts.checkTasksTool,
+            inputSchema: z.object({}),
+            async execute() {
+                const pendingTasks = await readPendingTasks();
+                return { tasks: pendingTasks, count: pendingTasks.length };
+            }
+        }),
+        scheduleTask: tool({
+            description: prompts.scheduleTaskTool,
+            inputSchema: z.object({
+                description: z.string().describe('A clear description of the task to be performed.'),
+                priority: z.enum(['high', 'medium', 'low']).optional().describe('The priority of the task. Default is medium.'),
+                scheduledFor: z.string().optional().describe('The date and time when the task is scheduled to be performed. Format: YYYY-MM-DDTHH:MM:SSZ'),
+            }),
+            async execute({ description, priority = 'medium', scheduledFor }) {
+                try {
+                    const task = await writeTask({
+                        description,
+                        priority,
+                        status: 'pending',
+                        scheduledFor,
+                    });
+                    return { success: true, task };
+                } catch (error: any) {
+                    console.error(`Failed to schedule task. Reason: ${error.message}`);
+                    return { success: false, error: error.message };
+                }
+            }
+        }),
+        completeTask: tool({
+            description: prompts.completeTaskTool,
+            inputSchema: z.object({
+                pageId: z.string().describe('The Notion page ID of the task to mark as completed.'),
+                status: z.enum(['completed', 'failed']).describe('Whether the task was completed successfully or failed.'),
+                result: z.string().optional().describe('Any additional notes or results to record about the task completion.'),
+            }),
+            async execute({ pageId, status, result }) {
+                try {
+                    const success = await updateTaskStatus(pageId, status, result);
+                    return { success, pageId, status };
+                } catch (error: any) {
+                    console.error(`Failed to complete task. Reason: ${error.message}`);
+                    return { success: false, error: error.message };
+                }
+            }
+        })
     }
 }
-
-export const webSearch = tool({
-    description: prompts.webSearch,
-    inputSchema: z.object({
-        query: z.string().describe('Search query string'),
-        limit: z.number().optional().describe('Maximum number of search results to return'),
-        endpoint: z.enum(['google', 'bing', 'duckduckgo']).default('google').describe('Search engine to use'),
-    }),
-
-    async execute({ query, limit = 5, endpoint }) {
-        console.log(`Performing web search for: "${query}" using ${endpoint} (limit: ${limit})`);
-    }
-});

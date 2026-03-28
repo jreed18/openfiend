@@ -20,11 +20,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["packages/shared/src/*"],
-      "@backend/*": ["packages/backend/src/*"],
-      "@frontend/*": ["packages/frontend/src/*"]
+      "@shared/*": ["./packages/shared/src/*"],
+      "@backend/*": ["./packages/backend/src/*"],
+      "@frontend/*": ["./packages/frontend/src/*"]
     }
   },
   "references": [
