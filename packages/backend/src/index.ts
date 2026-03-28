@@ -15,6 +15,7 @@ import { createTools } from './tools/tools';
 import { initializeNotionWorkspace } from './tools/notion';
 import WebSocket from 'ws';
 import { startNotionPolling } from './tools/notion/poller';
+import { recoverStaleDecisions, recoverStaleTasks } from '@backend/tools/notion';
 
 const app = express();
 
@@ -227,7 +228,14 @@ const server = wsApp.listen(PORT, () => {
 
   // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
   console.log(`[Notion] Initializing Bob's brain structure...`);
-  initializeNotionWorkspace();
+  initializeNotionWorkspace().then(async () => {
+    const [staleTasks, staleDecisions] = await Promise.all([
+      recoverStaleTasks(),
+      recoverStaleDecisions(),
+    ]);
+    if (staleTasks.length) console.log(`[Recovery] Reset ${staleTasks.length} stale tasks`);
+    if (staleDecisions.length) console.log(`[Recovery] Rejected ${staleDecisions.length} orphaned decisions`);
+  });
 
   // getFirstClient returns an open WS connection for tools that need to send messages (e.g. permission requests)
   const getFirstClient = (): WebSocket | null => {

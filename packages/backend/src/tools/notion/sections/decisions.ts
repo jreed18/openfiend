@@ -175,3 +175,62 @@ export async function updateDecisionStatus(pageId: string, status: 'approved' | 
     return false;
   }
 }
+
+
+export async function recoverStaleDecisions(): Promise<NotionDecision[]> {
+  try {
+    const client = getNotionClient();
+    const decisionsDbId = getConfigValue('decisions_db_id');
+
+    if (!client || !decisionsDbId) return [];
+
+    const dataSourceId = await getDataSourceId(decisionsDbId);
+
+    if (!dataSourceId) {
+      console.error('[Notion] Failed to get data source ID for decisions database');
+      return [];
+    }
+
+    console.log('[Notion] Recovering stale decisions...');
+
+    const notionResult = await client.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: {
+        property: 'Status',
+        select: { equals: 'pending_approval' },
+      },
+    });
+
+    const staleDecisions = notionResult.results.map((page: any) => ({
+      pageId: page.id,
+      action: page.properties.Action.title[0].plain_text,
+      reasoning: page.properties.Reasoning.rich_text[0].plain_text,
+      risks: page.properties.Risks.rich_text[0].plain_text,
+      riskLevel: page.properties.Risk.select.name,
+      status: page.properties.Status.select.name,
+      conversationId: page.properties.ConversationId.rich_text[0].plain_text,
+      annotation: page.properties.Annotation.rich_text[0].plain_text,
+      timestamp: page.properties.Timestamp.date.start,
+      tool: page.properties.Tool.rich_text[0].plain_text,
+    }));
+
+    // Automatically reject any decisions that have been pending
+    await Promise.all(
+      staleDecisions.map((decision) =>
+        client.pages.update({
+          page_id: decision.pageId,
+          properties: {
+            Status: { select: { name: 'rejected' } },
+          },
+        })
+      )
+    );
+
+    console.log(`[Notion] Rejected ${staleDecisions.length} stale decisions`);
+    return staleDecisions;
+
+  } catch (error: any) {
+    console.error(`[Notion] Error recovering stale decisions: ${error.message}`);
+    return [];
+  }
+}

@@ -152,3 +152,62 @@ export async function updateTaskStatus(
         return false;
     }
 }
+
+export async function recoverStaleTasks(): Promise<NotionTask[]> {
+    try {
+        const client = getNotionClient();
+        const tasksDbId = getConfigValue('tasks_db_id');
+
+        if (!client || !tasksDbId) {
+            console.error('[Notion] Notion client or tasks database not configured. Skipping stale task recovery.');
+            return [];
+        }
+
+        const dataSourceId = await getDataSourceId(tasksDbId);
+        if (!dataSourceId) {
+            console.error('[Notion] Failed to get data source ID for tasks database');
+            return [];
+        }
+
+        const notionResult = await client.dataSources.query({
+            data_source_id: dataSourceId,
+            filter: {
+                property: 'Status',
+                select: { equals: 'in_progress' },
+            },
+        });
+
+        if (!notionResult || !notionResult.results || notionResult.results.length === 0) {
+            return [];
+        }
+
+        const staleTasks: NotionTask[] = notionResult.results.map((page: any) => ({
+            pageId: page.id,
+            description: page.properties.Description?.title?.[0]?.text?.content || '',
+            priority: page.properties.Priority?.select?.name || 'low',
+            status: 'pending',
+            result: page.properties.Result?.rich_text?.[0]?.text?.content || '',
+            scheduledFor: page.properties.ScheduledFor?.date?.start || '',
+            timestampStarted: page.properties.TimestampStarted?.date?.start || '',
+            timestampCompleted: '',
+        }));
+
+        await Promise.all(
+            staleTasks.map((task) =>
+                client.pages.update({
+                    page_id: task.pageId,
+                    properties: {
+                        Status: { select: { name: 'pending' } },
+                    },
+                })
+            )
+        );
+
+        console.log(`[Notion] Recovered ${staleTasks.length} stale in-progress tasks`);
+        return staleTasks;
+
+    } catch (error) {
+        console.error('[Notion] Error recovering stale tasks:', error);
+        return [];
+    }
+}

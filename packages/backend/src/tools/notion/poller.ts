@@ -73,8 +73,21 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
 
     const pollTasks = async (): Promise<void> => {
         if (!isRunning) return;
+        const TASKS_PER_HOUR = 10; // adjust this based on expected task volume to balance responsiveness with API rate limits
 
         let nextPoll = TASK_POLL_INTERVAL_MS; // default to regular interval, but may adjust based on scheduled tasks
+        let tasksCompletedThisHour = 0;
+        let hourResetTime = Date.now() + 3600000; // reset the hourly counter after one hour
+
+        if (Date.now() > hourResetTime) {
+            tasksCompletedThisHour = 0;
+            hourResetTime = Date.now() + 3600000;
+        }
+
+        if (tasksCompletedThisHour > TASKS_PER_HOUR) {
+            console.log('[Notion Poller] Hourly task limit reached. Skipping');
+            return;
+        }
 
         try {
             const now = new Date();

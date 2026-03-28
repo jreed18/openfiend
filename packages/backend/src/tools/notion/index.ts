@@ -10,7 +10,7 @@ export { getNotionClient, isNotionConfigured } from './client';
 export { initializeNotionWorkspace } from './setup';
 
 // Decisions functions
-export { writeDecision, readPendingDecisions, updateDecisionStatus } from './sections/decisions';
+export { writeDecision, readPendingDecisions, updateDecisionStatus, recoverStaleDecisions } from './sections/decisions';
 
 // Memory functions
 export { writeMemory, readWill, readMemoriesBySession } from './sections/memory';
@@ -25,4 +25,4 @@ export { writeThreat, readRecentThreats } from './sections/threats';
 export { writeShadowObservation, readShadowObservations, markShadowAsEnabled } from './sections/shadow';
 
 // Tasks functions
-export { writeTask, readPendingTasks, updateTaskStatus } from './sections/tasks';
+export { writeTask, readPendingTasks, updateTaskStatus, recoverStaleTasks } from './sections/tasks';
