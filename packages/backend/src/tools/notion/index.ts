@@ -26,3 +26,6 @@ export { writeShadowObservation, readShadowObservations, markShadowAsEnabled } f
 
 // Tasks functions
 export { writeTask, readPendingTasks, updateTaskStatus, recoverStaleTasks } from './sections/tasks';
+
+// Mind functions
+export { customizeMind } from './sections/mind';

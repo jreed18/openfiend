@@ -1,4 +1,4 @@
-import { resolveDecision, hasPendingDecisions, getStreamedResponseFullHistory } from "@backend/orchestration/orchestrator";
+﻿import { resolveDecision, hasPendingDecisions, getStreamedResponseFullHistory } from "@backend/orchestration/orchestrator";
 import { readPendingDecisions } from "./sections/decisions";
 import { readPendingTasks, updateTaskStatus } from "./sections/tasks";
 import { PermissionStatus } from "@openfiend/shared";
@@ -50,7 +50,7 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 const previousStatus = statusCache.get(pageId);
                 statusCache.set(pageId, currentStatus);
 
-                // First time seeing this decision — cache and skip
+                // First time seeing this decision â€” cache and skip
                 if (!previousStatus) continue;
 
                 if (previousStatus === 'pending_approval'
@@ -114,12 +114,15 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 console.log(`[Notion Poller] Picked up task ${task.pageId} with priority ${task.priority}`);
                 await updateTaskStatus(task.pageId, 'in_progress');
 
-                // Process the task directly on the backend — no frontend round-trip
+                // Process the task directly on the backend â€” no frontend round-trip
                 const conversationId = uuidv4();
-                const taskContent = `[SYSTEM REMINDER] Deliver this reminder to the user now. Do not attempt to perform the task yourself — just notify the user.
-                                    Reminder: ${task.description}
+                                const taskContent = `[SYSTEM TASK] Handle this Notion task now.
+                                    Task: ${task.description}
                                     Priority: ${task.priority}
-                                    Keep it short. One sentence.`;
+
+                                    If the task is purely writing/thinking (draft, summarize, rewrite, brainstorm, explain), complete it directly and return the full output.
+                                    If the task requires external actions/tools/permissions (send, delete, modify files, call APIs, purchases, bookings), do NOT execute it; instead return a one-sentence reminder.
+                                    Keep responses concise and practical.`;
 
 
 
@@ -150,10 +153,10 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 // Get a WS client for tool creation (needed for permission requests)
                 const wsClient = getFirstClient();
                 if (!wsClient) {
-                    console.warn('[Notion Poller] No connected WS client — processing task without permission tools');
+                    console.warn('[Notion Poller] No connected WS client â€” processing task without permission tools');
                 }
 
-                // Create tools (pass a dummy WS if none connected — permission tools will fail gracefully)
+                // Create tools (pass a dummy WS if none connected â€” permission tools will fail gracefully)
                 const tools = wsClient ? createTools(wsClient, conversationId) : {};
 
                 try {
@@ -216,3 +219,4 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
         clearTimeout(taskTimeoutId);
     };
 }
+

@@ -9,6 +9,7 @@ import { scrapeUrl } from '@backend/tools/utils';
 import { PermissionStatus } from '@openfiend/shared';
 import { requestPermission } from '@backend/orchestration/orchestrator';
 import { readPendingTasks, updateTaskStatus, writeTask } from '@backend/tools/notion/sections/tasks';
+import { customizeMind as customizeMindSection } from '@backend/tools/notion/sections/mind';
 
 
 // 
@@ -290,6 +291,32 @@ export function createTools(ws: WebSocket, conversationId: string) {
                 } catch (error: any) {
                     console.error(`Failed to complete task. Reason: ${error.message}`);
                     return { success: false, error: error.message };
+                }
+            }
+        }),
+        customizeMind: tool({
+            description: 'Customize Bob\'s Notion root page (title, icon, cover, blocks, or preset layout).',
+            inputSchema: z.object({
+                action: z.enum(['set_title', 'set_icon', 'set_cover', 'append_blocks', 'apply_preset']),
+                title: z.string().optional().describe('Title to set when action is set_title'),
+                icon: z.string().optional().describe('Emoji icon when action is set_icon, for example: 🧠'),
+                coverUrl: z.string().optional().describe('External image URL when action is set_cover'),
+                preset: z.enum(['minimalist', 'detailed']).optional().describe('Preset to apply when action is apply_preset'),
+                blocks: z.array(z.any()).optional().describe('Notion block objects when action is append_blocks'),
+            }),
+            async execute({ action, title, icon, coverUrl, preset, blocks }) {
+                try {
+                    const data: Record<string, any> = {};
+                    if (title !== undefined) data.title = title;
+                    if (icon !== undefined) data.icon = icon;
+                    if (coverUrl !== undefined) data.coverUrl = coverUrl;
+                    if (preset !== undefined) data.preset = preset;
+                    if (blocks !== undefined) data.blocks = blocks;
+
+                    return await customizeMindSection(action, data);
+                } catch (error: any) {
+                    console.error(`Failed to customize mind. Reason: ${error.message}`);
+                    return { success: false, message: error.message || 'Failed to customize mind.' };
                 }
             }
         })

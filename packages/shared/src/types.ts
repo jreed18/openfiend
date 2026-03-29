@@ -68,6 +68,7 @@ export const AuditLogEntrySchema = z.object({
   id: z.string(),
   timestamp: z.number(),
   eventType: z.enum([
+    'user_input',
     'llm_call',
     'tool_invocation',
     'tool_result',
