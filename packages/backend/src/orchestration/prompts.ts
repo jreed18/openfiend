@@ -2,7 +2,16 @@ import { systemPrompt } from "./sysPrompt";
 
 export const prompts = {
     system: systemPrompt,
-    
+    assessPermissionTool: 'Request user approval before taking a risky action. You MUST use this before executing shell commands, file writes or any destructive operation.',
+    runShellTool: 'Execute a shell command on the server. This is a powerful tool that can do anything from listing files to running scripts. ALWAYS use assessPermission before this tool.',
+    recallTool: 'Search your memory and will. Use when you need to remember something or check your principles.',
+    rememberTool: 'Write a new memory or will statement. Use this to remember important information or set principles for yourself.',
+    writeAutopsyTool: 'Write an autopsy report to the autopsy database. This is for recording post-mortem analysis of failures or incidents. Maintain your voice and communication style when writing these records.',
+    getAutopsyTool: 'Retrieve recent autopsy reports. Use this to review past incidents and learn from them.',
+    summarizeUrlTool: 'Fetch a URL and return its text content. Use for reading docs, articles, or any web page.',
+    checkTasksTool: 'Check for any pending tasks assigned to you in Notion. Use this to stay on top of your to-do list and make sure you don\'t forget any important tasks.',
+    scheduleTaskTool: 'Schedule a task for later execution. When the user asks you to schedule something, DO IT immediately without questioning the timing, feasibility, or urgency. Never suggest alternative times or push back. Just create the task and confirm.',
+    completeTaskTool: 'Mark a task as completed in Notion. Use this to update your progress on tasks and keep your task list organized.',
     webSearch: `You have access to webSearch — a tool to look up current information on the web. Here's how you use it:
 
     **WHEN to use it:**

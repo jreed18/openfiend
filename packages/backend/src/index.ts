@@ -1,7 +1,7 @@
 import express from 'express';
 import expressWs from 'express-ws';
 import { z } from 'zod';
-import { getStreamedResponseFullHistory } from './orchestration/orchestrator';
+import { getStreamedResponseFullHistory, resolveDecision } from './orchestration/orchestrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,9 +10,17 @@ import { messages as messagesTable,
   conversations as conversationsTable, 
   auditLogs as auditLogsTable } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { PermissionStatus } from '@openfiend/shared';
+import { createTools } from './tools/tools';
+import { initializeNotionWorkspace } from './tools/notion';
+import WebSocket from 'ws';
+import { startNotionPolling } from './tools/notion/poller';
+import { recoverStaleDecisions, recoverStaleTasks } from '@backend/tools/notion';
 
 const app = express();
-const wsApp = expressWs(app).app;
+
+const wsInstance = expressWs(app);
+const wsApp = wsInstance.app;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,9 +50,38 @@ app.get('/health', (_req, res) => {
 wsApp.ws('/ws', (ws, _req) => {
   console.log('WebSocket client connected');
 
+  const provider = process.env.LLM_PROVIDER || 'anthropic';
+  const model = provider === 'anthropic' ? 'claude-haiku-4-5' : 'groq-llama-3.1-8b-instant';
+
+  // send system info message to frontend so it knows which model/provider we're using
+  ws.send(JSON.stringify({
+    type: 'system_info',
+    model,
+    provider,
+   }));
+
   ws.on('message', async (msg) => {
     console.log('Received message:', msg);
     try {
+      const raw = JSON.parse(msg.toString());
+
+      if (raw.type === 'permission_response') {
+        // validate with PermissionResponseSchema (or inline z.object parse)
+        const PermissionResponseSchema = z.object({
+          type: z.literal('permission_response'),
+          id: z.string(),
+          decision: z.enum(['approved', 'rejected']),
+          conversationId: z.string(),
+        });
+
+        const parsedResponse = PermissionResponseSchema.parse(raw);
+        // call resolveDecision(parsedResponse.id, parsedResponse.decision)
+        console.log(`Received permission response for ID ${parsedResponse.id}: ${parsedResponse.decision}`);
+        resolveDecision(parsedResponse.id, parsedResponse.decision as PermissionStatus);
+        console.log(`Permission decision resolved for ID ${parsedResponse.id}`);
+        return; // return early (don't send to LLM)
+      }
+
       const parsedMessage = UserInputSchema.parse(JSON.parse(msg.toString()));
 
       // TODO: Create context for LLM based on conversationId.
@@ -88,8 +125,11 @@ wsApp.ws('/ws', (ws, _req) => {
         conversationId: conversationId,
       }));
 
+      const tools = createTools(ws, conversationId);
+
       const response = await getStreamedResponseFullHistory(
-        history.filter(msg => 'content' in msg)
+        history.filter(msg => 'content' in msg),
+        tools,
       );
 
       // add response to history
@@ -130,6 +170,7 @@ wsApp.ws('/ws', (ws, _req) => {
           }
         }));
       }
+
     } catch (error) {
         console.error(`Error: ${error}`);
         ws.send(JSON.stringify({
@@ -169,23 +210,63 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(err.status || 500).json({ error: err.message });
 });
 
-// Start server
-try {
-  wsApp.listen(PORT, () => {
-    console.log(`OPENFIEND backend running on http://localhost:${PORT}`);
-  });
-} catch (err) {
-  console.error('Failed to start server:', err);
-  process.exit(1);
+// broadcast helper
+const broadcastToClients = (message: unknown) => {
+  const payload = JSON.stringify(message);
+  const wss = wsInstance.getWss();
+
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  }
 }
+
+// Start server
+const server = wsApp.listen(PORT, () => {
+  console.log(`OPENFIEND backend running on http://localhost:${PORT}`);
+
+  // initialize notion integration - this acts as Bob's persistent memory and ethical judgement
+  console.log(`[Notion] Initializing Bob's brain structure...`);
+  initializeNotionWorkspace().then(async () => {
+    const [staleTasks, staleDecisions] = await Promise.all([
+      recoverStaleTasks(),
+      recoverStaleDecisions(),
+    ]);
+    if (staleTasks.length) console.log(`[Recovery] Reset ${staleTasks.length} stale tasks`);
+    if (staleDecisions.length) console.log(`[Recovery] Rejected ${staleDecisions.length} orphaned decisions`);
+  });
+
+  // getFirstClient returns an open WS connection for tools that need to send messages (e.g. permission requests)
+  const getFirstClient = (): WebSocket | null => {
+    for (const client of wsInstance.getWss().clients) {
+      if (client.readyState === WebSocket.OPEN) return client as unknown as WebSocket;
+    }
+    return null;
+  };
+
+  startNotionPolling(broadcastToClients, getFirstClient);
+  console.log(`[Notion] Initialization complete. Started polling for decision updates.`);
+});
+
+// Graceful shutdown — release the port so tsx watch restarts cleanly
+const shutdown = () => {
+  console.log('Shutting down server...');
+  server.close(() => process.exit(0));
+  // Force exit after 2s if connections won't close
+  setTimeout(() => process.exit(0), 2000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 // Catch unhandled errors
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
-  process.exit(1);
+  server.close(() => process.exit(1));
+  setTimeout(() => process.exit(1), 2000);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled rejection at:', promise, 'reason:', reason);
-  process.exit(1);
 });

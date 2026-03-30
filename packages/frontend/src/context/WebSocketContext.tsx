@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from "react";
-import { AuditLogEntry, Message } from '@openfiend/shared';
+import { AuditLogEntry, Message, ToolCall } from '@openfiend/shared';
 import { v4 as uuidv4 } from "uuid";
 
 interface PermissionRequest {
@@ -9,6 +9,10 @@ interface PermissionRequest {
 
 interface WebSocketContextType {
   connectionStatus: "connecting" | "connected" | "disconnected" | "error",
+  systemInfo: {
+    model: string,
+    provider: string,
+  },
   messages: Message[],
   auditLogs: AuditLogEntry[],
   currentPermissionRequest: PermissionRequest | null,
@@ -17,6 +21,9 @@ interface WebSocketContextType {
   startNewConversation: () => void,
   switchConversation: (id: string) => void,
   send: (content: string, conversationId: string) => void,
+  toolCalls: ToolCall[],
+  approveToolCall: (id: string) => void,
+  rejectToolCall: (id: string) => void,
 }
 
 interface WebSocketProviderProps {
@@ -38,7 +45,9 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [messages, setMessages] = useState<Message[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [systemInfo, setSystemInfo] = useState({ model: 'claude-haiku-4-5', provider: 'anthropic' });
   const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [conversations, setConversations] = useState<{ id: string, title: string }[]>([])
   const [conversationId, setConversationId] = useState(() => uuidv4());
@@ -79,10 +88,38 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
             skill: parsedMessage.skillName,
             permissions: parsedMessage.permissions,
           });
+
+          // push to toolCalls array:
+          setToolCalls(prev => [...prev, {
+            id: parsedMessage.id,
+            toolName: parsedMessage.toolName,
+            action: parsedMessage.action,
+            reasoning: parsedMessage.reasoning,
+            riskLevel: parsedMessage.riskLevel,
+            status: 'pending_approval',
+            conversationId: parsedMessage.conversationId,
+          }]);
+
         } else if (parsedMessage.type === 'error') {
           console.error('Server error:', parsedMessage.message);
         } else if (parsedMessage.type === 'audit_log') {
           setAuditLogs(prev => [...prev, parsedMessage.entry])
+        } else if (parsedMessage.type === 'system_info') {
+          setSystemInfo({
+            model: parsedMessage.model,
+            provider: parsedMessage.provider,
+          });
+        } else if (parsedMessage.type === 'decision_approved' || parsedMessage.type === 'decision_rejected') {
+          const { decision } = parsedMessage;
+          const newStatus = parsedMessage.type === 'decision_approved' ? 'approved' : 'rejected';
+
+          // update the tool call status (same as clicking the allow / reject in UI)
+          setToolCalls(prev => prev.map(x => x.id === decision.pageId ? { ...x, status: newStatus } : x ));
+
+          // remove after delay so user sees the status change in the UI
+          setTimeout(() => {
+            setToolCalls(prev => prev.filter(x => x.id !== decision.pageId));
+          }, 2000);
         }
       } catch (err) {
         console.error('Failed to parse message:', err);
@@ -122,6 +159,58 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
     localStorage.setItem('conversation-id', newId);
   }, [])
 
+  // cover approval scenario
+  const approveToolCall = useCallback((id: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const tool = toolCalls.find(x => x.id === id);
+      
+      if (!tool) {
+        console.error(`Tool call with id ${id} not found`);
+        return;
+      }
+      
+      ws.send(JSON.stringify({
+        type: 'permission_response',
+        id,
+        decision: 'approved',
+        conversationId: tool.conversationId,
+      }));
+      
+      // update toolCalls with new approved info
+      setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'approved' } : x ));
+
+      // remove after a delay to allow user to see the approved status in the UI
+      setTimeout(() => {
+        setToolCalls(prev => prev.filter(x => x.id !== id));
+      }, 2000);
+    }
+  }, [ws, toolCalls]);
+
+  // cover rejection scenario
+  const rejectToolCall = useCallback((id: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const tool = toolCalls.find(x => x.id === id);
+      if (!tool) {
+        console.error(`Tool call with id ${id} not found`);
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'permission_response',
+        id,
+        decision: 'rejected',
+        conversationId: tool.conversationId,
+      }));
+
+      setToolCalls(prev => prev.map(x => x.id === id ? { ...x, status: 'rejected'} : x ));
+
+      // remove after a delay to allow user to see the rejected status in the UI
+      setTimeout(() => {
+        setToolCalls(prev => prev.filter(x => x.id !== id));
+      }, 2000);
+    }
+  }, [ws, toolCalls]);
+
   const switchConversation = useCallback(async (id: string) => {
     setConversationId(id);
     setMessages([]);
@@ -144,13 +233,17 @@ export function WebSocketProvider({ children, url = `ws://${window.location.host
 
   const value: WebSocketContextType = {
     connectionStatus,
+    systemInfo,
     messages,
     auditLogs,
     currentPermissionRequest,
     conversationId,
     conversations,
+    toolCalls,
     startNewConversation,
     switchConversation,
+    approveToolCall,
+    rejectToolCall,
     send,
   };
 

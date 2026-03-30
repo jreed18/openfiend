@@ -17,15 +17,19 @@ function AuditTrail() {
   function getEventStyle(eventType: string) {
     switch (eventType) {
       case 'tool_invocation':
-        return { bg: '#e11d7e', label: 'TOOL' };
+        return { bg: 'var(--red)', label: 'EXEC' };
       case 'llm_call':
-        return { bg: '#f97316', label: 'LLM' };
+        return { bg: 'var(--amber)', label: 'READ' };
       case 'permission_request':
-        return { bg: '#facc15', label: 'PERM' };
+        return { bg: 'var(--purple)', label: 'PERM' };
       case 'agent_response':
-        return { bg: '#22c55e', label: 'RESP' };
+        return { bg: 'var(--green)', label: 'OK' };
+      case 'tool_result':
+        return { bg: 'var(--blue)', label: 'WRITE' };
+      case 'permission_decision':
+        return { bg: 'var(--green)', label: 'OK' };
       default:
-        return { bg: '#525252', label: eventType.toUpperCase() };
+        return { bg: 'var(--text-muted)', label: 'NET' };
     }
   }
 
@@ -35,112 +39,114 @@ function AuditTrail() {
         return 'Bob thought about your message';
       case 'tool_invocation':
         const toolInput = typeof log.input === 'string' ? log.input : '';
-        return toolInput ?
-          `Bob used a tool: "${toolInput.slice(0,50)}"`
-        : 'Bob used a tool';
+        return toolInput
+          ? `${toolInput.slice(0, 40)}`
+          : 'Bob used a tool';
       case 'tool_result':
         return 'Tool returned results';
       case 'permission_request':
-        return 'Bob asked for permission';
+        return 'Permission requested';
       case 'permission_decision':
         return 'Permission was granted';
       case 'agent_response':
         const responsePreview = typeof log.output === 'string' ? log.output : '';
-        return responsePreview ?
-          `Bob said: "${responsePreview.slice(0,40)}"`
-        : 'Bob responded';
+        return responsePreview
+          ? `${responsePreview.slice(0, 35)}`
+          : 'Bob responded';
       default:
         return log.eventType;
     }
   }
 
   return (
-    <aside className="flex h-full flex-col border-l border-neutral-800">
-      {/* Panel header */}
-      <div className="border-b border-neutral-800 px-4 py-5">
+    <div className="flex h-full flex-col">
+      {/* Title bar */}
+      <div
+        style={{ backgroundColor: 'var(--surface2)', borderBottom: '1px solid var(--border)', height: '32px' }}
+        className="flex items-center px-3 shrink-0"
+      >
+        <div className="flex items-center gap-1.5 mr-3">
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--purple)', opacity: 0.5 }} />
+        </div>
         <span
-          className="text-xs uppercase tracking-widest"
           style={{
-            color: '#f97316',
-            fontFamily: "'Space Mono', monospace",
-            letterSpacing: '0.2em',
+            fontSize: '10px',
+            fontWeight: 500,
+            color: 'var(--text-secondary)',
+            fontFamily: "system-ui",
           }}
         >
           Audit Trail
         </span>
+        <span
+          className="ml-auto text-[8px] tracking-widest"
+          style={{
+            color: 'var(--text-muted)',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {auditLogs.length} events
+        </span>
       </div>
 
       {/* Timeline area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="openfiend-scroll flex-1 overflow-y-auto px-2 py-2">
         {auditLogs.length < 1 ? (
           <p
-            className="text-xs leading-relaxed"
+            className="text-[9px] leading-relaxed px-1"
             style={{
-              color: '#404040',
-              fontFamily: "'Space Mono', monospace",
+              color: 'var(--text-muted)',
+              fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            No events yet. Actions will appear here as the agent runs.
+            &gt; no events recorded.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
             {auditLogs.map((log, idx) => {
               const prev = auditLogs[idx - 1];
-              const showDivider = prev && (log.timestamp - prev.timestamp > 5000)
+              const showDivider = prev && (log.timestamp - prev.timestamp > 5000);
               const event = getEventStyle(log.eventType);
 
               return (
                 <Fragment key={log.id}>
-                 {showDivider && (
-                  <div className="flex items-center gap-2 py-2">
-                    <div className="flex-1 border-t border-neutral-800" />
-                    <span style={{
-                      color: '#525252',
-                      fontFamily: "'Space Mono', monospace",
-                      fontSize: '9px',
-                    }}>
-                      new turn
-                    </span>
-                    <div className="flex-1 border-t border-neutral-800" />
-                  </div>
-                 )}
-                 <div
-                    className="border-l-2 pl-3 py-1"
-                    style={{ borderColor: event.bg }}
-                  >
-                  {/* Top row: badge + timestamp */}
-                  <div className="flex items-center gap-2 mb-1">
+                  {showDivider && (
+                    <div className="py-0.5">
+                      <div style={{ borderTop: '1px solid var(--border)' }} />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 py-0.5 px-1">
                     <span
-                      className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      className="text-[8px] shrink-0"
                       style={{
-                        backgroundColor: event.bg,
-                        color: '#0a0a0a',
-                        fontFamily: "'Space Mono', monospace",
+                        color: 'var(--text-muted)',
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      {formatTime(log.timestamp)}
+                    </span>
+                    <span
+                      className="px-1 text-[7px] font-bold uppercase tracking-wider shrink-0"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${event.bg} 20%, transparent)`,
+                        color: event.bg,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        borderRadius: '2px',
                       }}
                     >
                       {event.label}
                     </span>
                     <span
-                      className="text-[10px]"
+                      className="text-[9px] leading-tight truncate"
                       style={{
-                        color: '#525252',
-                        fontFamily: "'Space Mono', monospace",
+                        color: 'var(--text-secondary)',
+                        fontFamily: "'JetBrains Mono', monospace",
                       }}
                     >
-                      {formatTime(log.timestamp)}
+                      {getEventDescription(log)}
                     </span>
-                  </div>
-
-                  {/* Event description */}
-                  <p
-                    className="text-[11px] leading-relaxed"
-                    style={{
-                      color: '#737373',
-                      fontFamily: "'Space Mono', monospace",
-                    }}
-                  >
-                    {getEventDescription(log)}
-                  </p>
                   </div>
                 </Fragment>
               );
@@ -148,26 +154,7 @@ function AuditTrail() {
           </div>
         )}
       </div>
-
-      {/* Footer status */}
-      <div className="border-t border-neutral-800 px-4 py-3 flex items-center gap-2">
-        <div
-          className="h-1.5 w-1.5 rounded-full"
-          style={{
-            backgroundColor: auditLogs.length > 0 ? '#22c55e' : '#404040',
-          }}
-        />
-        <p
-          className="text-[10px] uppercase tracking-widest"
-          style={{
-            color: '#404040',
-            fontFamily: "'Space Mono', monospace",
-          }}
-        >
-          {auditLogs.length} events · hash chain intact
-        </p>
-      </div>
-    </aside>
+    </div>
   );
 }
 

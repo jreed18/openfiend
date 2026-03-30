@@ -9,8 +9,18 @@ export const MessageSchema = z.union([
   }),
   z.object({
     type: z.literal('permission_request'),
-    skillName: z.string(),
-    permissions: z.array(z.string()),
+    id: z.string(),
+    toolName: z.string(),   // which tool Bob wants to use
+    action: z.string(),     // what Bob intends to do (human-readable summary)
+    reasoning: z.string(),  // why Bob thinks it's necessary
+    riskLevel: z.enum(['low', 'medium', 'high']),
+    conversationId: z.string()
+  }),
+  z.object({
+    type: z.literal('permission_decision'),
+    id: z.string(),   // matches permission_request id
+    decision: z.enum(['approved', 'rejected']),
+    conversationId: z.string()
   }),
   z.object({
     type: z.literal('agent_response'),
@@ -27,6 +37,11 @@ export const MessageSchema = z.union([
       input: z.string(),
       output: z.string(),
     })
+  }),
+  z.object({
+    type: z.literal('system_info'),
+    model: z.string(),
+    provider: z.string(),
   })
 ]);
 
@@ -45,7 +60,7 @@ export const SkillManifestSchema = z.object({
 export type SkillManifest = z.infer<typeof SkillManifestSchema>;
 
 // Permission states
-export const PermissionStateSchema = z.enum(['allowed', 'denied', 'unknown']);
+export const PermissionStateSchema = z.enum(['allowed', 'rejected', 'unknown']);
 export type PermissionState = z.infer<typeof PermissionStateSchema>;
 
 // Audit log entry
@@ -53,6 +68,7 @@ export const AuditLogEntrySchema = z.object({
   id: z.string(),
   timestamp: z.number(),
   eventType: z.enum([
+    'user_input',
     'llm_call',
     'tool_invocation',
     'tool_result',
@@ -87,3 +103,19 @@ export const ConversationSchema = z.object({
 });
 
 export type Conversation = z.infer<typeof ConversationSchema>;
+
+
+export enum PermissionStatus {
+    Approved = 'approved',
+    Rejected = 'rejected',
+}
+
+export interface ToolCall {
+  id: string;   // notion page id
+  toolName: string;   // which tool Bob wants to use
+  action: string;     // human-readable summary of what Bob wants to do
+  reasoning: string;   // why Bob thinks this is necessary
+  riskLevel: 'low' | 'medium' | 'high';   // assessment of the risk level
+  status: 'pending_approval' | 'approved' | 'rejected';   // current status of the tool call
+  conversationId: string;   // which conversation this tool call is associated with
+}
