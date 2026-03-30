@@ -1,4 +1,4 @@
-﻿import { getNotionClient } from '../client';
+﻿import { callNotionTool } from '../mcpClient';
 import { getConfigValue } from '../setup';
 
 /**
@@ -9,11 +9,10 @@ import { getConfigValue } from '../setup';
 
 export async function customizeMind(action: string, data: Record<string, any> = {}): Promise<{ success: boolean; message: string }> {
   try {
-    const client = getNotionClient();
     const rootPageId = getConfigValue('root_page_id');
 
-    if (!client || !rootPageId) {
-      return { success: false, message: 'Notion client or root page is not configured.' };
+    if (!rootPageId) {
+      return { success: false, message: 'Notion root page is not configured.' };
     }
 
     switch (action) {
@@ -21,7 +20,7 @@ export async function customizeMind(action: string, data: Record<string, any> = 
         const title = (data.title || '').trim();
         if (!title) return { success: false, message: 'Missing title.' };
 
-        await client.pages.update({
+        await callNotionTool('API-patch-page', {
           page_id: rootPageId,
           properties: {
             title: {
@@ -36,7 +35,7 @@ export async function customizeMind(action: string, data: Record<string, any> = 
       case 'set_icon': {
         if (!data.icon) return { success: false, message: 'Missing icon.' };
 
-        await client.pages.update({
+        await callNotionTool('API-patch-page', {
           page_id: rootPageId,
           icon: typeof data.icon === 'string' ? { type: 'emoji', emoji: data.icon } : data.icon,
         });
@@ -48,7 +47,7 @@ export async function customizeMind(action: string, data: Record<string, any> = 
         const cover = data.coverUrl || data.cover;
         if (!cover) return { success: false, message: 'Missing cover URL.' };
 
-        await client.pages.update({
+        await callNotionTool('API-patch-page', {
           page_id: rootPageId,
           cover: typeof cover === 'string' ? { type: 'external', external: { url: cover } } : cover,
         });
@@ -60,7 +59,7 @@ export async function customizeMind(action: string, data: Record<string, any> = 
         const blocks = Array.isArray(data.blocks) ? data.blocks : [];
         if (blocks.length === 0) return { success: false, message: 'No blocks provided.' };
 
-        await client.blocks.children.append({
+        await callNotionTool('API-patch-block-children', {
           block_id: rootPageId,
           children: blocks,
         });
@@ -72,13 +71,13 @@ export async function customizeMind(action: string, data: Record<string, any> = 
         const preset = (data.preset || '').toLowerCase();
 
         if (preset === 'minimalist') {
-          await client.pages.update({
+          await callNotionTool('API-patch-page', {
             page_id: rootPageId,
             icon: { type: 'external', external: { url: 'https://www.notion.so/icons/brain_gray.svg' } },
             cover: { type: 'external', external: { url: 'https://images.unsplash.com/photo-1518770660439-4636190af475' } },
           });
 
-          await client.blocks.children.append({
+          await callNotionTool('API-patch-block-children', {
             block_id: rootPageId,
             children: [
               {
@@ -98,13 +97,13 @@ export async function customizeMind(action: string, data: Record<string, any> = 
         }
 
         if (preset === 'detailed') {
-          await client.pages.update({
+          await callNotionTool('API-patch-page', {
             page_id: rootPageId,
             icon: { type: 'external', external: { url: 'https://www.notion.so/icons/book_gray.svg' } },
             cover: { type: 'external', external: { url: 'https://images.unsplash.com/photo-1456324504439-367cee3b3c32' } },
           });
 
-          await client.blocks.children.append({
+          await callNotionTool('API-patch-block-children', {
             block_id: rootPageId,
             children: [
               {

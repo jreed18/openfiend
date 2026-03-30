@@ -1,8 +1,8 @@
-import { getNotionClient, getDataSourceId } from '../client';
+﻿import { callNotionTool, getDataSourceId } from '../mcpClient';
 import { getConfigValue } from '../setup';
 
 /**
- * DECISIONS SECTION — Bob's ethical review board
+ * DECISIONS SECTION - Bob's ethical review board
  *
  * This module handles reading/writing/updating decision proposals.
  * Before Bob takes sensitive actions, he writes a structured proposal here.
@@ -24,6 +24,11 @@ export interface NotionDecision {
   tool: string;
 }
 
+function getTextContent(textNodes: any[] | undefined): string {
+  if (!Array.isArray(textNodes) || textNodes.length === 0) return '';
+  return textNodes[0]?.plain_text || textNodes[0]?.text?.content || '';
+}
+
 // Creates a new decision page in Notion with status "pending_approval"
 // Returns the page ID for tracking
 export async function writeDecision(data: {
@@ -39,13 +44,7 @@ export async function writeDecision(data: {
   tool: string;
 }): Promise<string | null> {
   try {
-    const client = getNotionClient();
     const decisionsDbId = getConfigValue('decisions_db_id');
-
-    if (!client) {
-      console.error('[Notion] Notion client not configured. Skipping decision write.');
-      return null;
-    }
 
     if (!decisionsDbId) {
       console.error('[Notion] Decisions database not initialized. Call initializeNotionWorkspace() first.');
@@ -54,7 +53,7 @@ export async function writeDecision(data: {
 
     console.log('[Notion] Writing decision to Notion database...');
 
-    const response = await client.pages.create({
+    const response = await callNotionTool<any>('API-post-page', {
       parent: {
         type: 'database_id',
         database_id: decisionsDbId,
@@ -90,10 +89,9 @@ let lastPollTimestamp = new Date(Date.now() - 60_000).toISOString();
 
 export async function readPendingDecisions(): Promise<NotionDecision[]> {
   try {
-    const client = getNotionClient();
     const decisionsDbId = getConfigValue('decisions_db_id');
 
-    if (!client || !decisionsDbId) return [];
+    if (!decisionsDbId) return [];
 
     const dataSourceId = await getDataSourceId(decisionsDbId);
 
@@ -104,7 +102,7 @@ export async function readPendingDecisions(): Promise<NotionDecision[]> {
 
     console.log('[Notion] Reading pending decisions...');
 
-    const notionResult = await client.dataSources.query({
+    const notionResult = await callNotionTool<any>('API-query-data-source', {
       data_source_id: dataSourceId,
       filter: {
         and: [
@@ -127,22 +125,24 @@ export async function readPendingDecisions(): Promise<NotionDecision[]> {
       }]
     });
 
-    // Advance the sliding window
-    if (notionResult.results.length > 0) {
-      lastPollTimestamp = (notionResult.results[0] as any).last_edited_time;
+    const results = notionResult?.results || [];
+    if (!Array.isArray(results)) return [];
+
+    if (results.length > 0) {
+      lastPollTimestamp = results[0]?.last_edited_time || lastPollTimestamp;
     }
 
-    return notionResult.results.map((page: any) => ({
+    return results.map((page: any) => ({
       pageId: page.id,
-      action: page.properties.Action.title[0].plain_text,
-      reasoning: page.properties.Reasoning.rich_text[0].plain_text,
-      risks: page.properties.Risks.rich_text[0].plain_text,
-      riskLevel: page.properties.Risk.select.name,
-      status: page.properties.Status.select.name,
-      conversationId: page.properties.ConversationId.rich_text[0].plain_text,
-      annotation: page.properties.Annotation.rich_text[0].plain_text,
-      timestamp: page.properties.Timestamp.date.start,
-      tool: page.properties.Tool.rich_text[0].plain_text,
+      action: getTextContent(page.properties?.Action?.title),
+      reasoning: getTextContent(page.properties?.Reasoning?.rich_text),
+      risks: getTextContent(page.properties?.Risks?.rich_text),
+      riskLevel: page.properties?.Risk?.select?.name || 'low',
+      status: page.properties?.Status?.select?.name || 'pending_approval',
+      conversationId: getTextContent(page.properties?.ConversationId?.rich_text),
+      annotation: getTextContent(page.properties?.Annotation?.rich_text),
+      timestamp: page.properties?.Timestamp?.date?.start || '',
+      tool: getTextContent(page.properties?.Tool?.rich_text),
     }));
   } catch (err: any) {
     console.error('[Notion] Failed to read pending decisions: ', err.message);
@@ -152,22 +152,19 @@ export async function readPendingDecisions(): Promise<NotionDecision[]> {
 
 export async function updateDecisionStatus(pageId: string, status: 'approved' | 'rejected', annotation?: string): Promise<boolean> {
   try {
-    const client = getNotionClient();
     const decisionsDbId = getConfigValue('decisions_db_id');
 
-    if (!client || !decisionsDbId) return false;
+    if (!decisionsDbId) return false;
 
     console.log('[Notion] Updating decision status...');
 
-    const notionResponse = await client.pages.update({
+    await callNotionTool('API-patch-page', {
       page_id: pageId,
       properties: {
         Status: { select: { name: status } },
         ...(annotation && { Annotation: { rich_text: [{ text: { content: annotation } }] } }),
       }
     });
-
-    if (!notionResponse) return false;
 
     return true;
   } catch (err: any) {
@@ -179,10 +176,9 @@ export async function updateDecisionStatus(pageId: string, status: 'approved' | 
 
 export async function recoverStaleDecisions(): Promise<NotionDecision[]> {
   try {
-    const client = getNotionClient();
     const decisionsDbId = getConfigValue('decisions_db_id');
 
-    if (!client || !decisionsDbId) return [];
+    if (!decisionsDbId) return [];
 
     const dataSourceId = await getDataSourceId(decisionsDbId);
 
@@ -193,7 +189,7 @@ export async function recoverStaleDecisions(): Promise<NotionDecision[]> {
 
     console.log('[Notion] Recovering stale decisions...');
 
-    const notionResult = await client.dataSources.query({
+    const notionResult = await callNotionTool<any>('API-query-data-source', {
       data_source_id: dataSourceId,
       filter: {
         property: 'Status',
@@ -201,23 +197,25 @@ export async function recoverStaleDecisions(): Promise<NotionDecision[]> {
       },
     });
 
-    const staleDecisions = notionResult.results.map((page: any) => ({
+    const results = notionResult?.results || [];
+    if (!Array.isArray(results)) return [];
+
+    const staleDecisions = results.map((page: any) => ({
       pageId: page.id,
-      action: page.properties.Action.title[0].plain_text,
-      reasoning: page.properties.Reasoning.rich_text[0].plain_text,
-      risks: page.properties.Risks.rich_text[0].plain_text,
-      riskLevel: page.properties.Risk.select.name,
-      status: page.properties.Status.select.name,
-      conversationId: page.properties.ConversationId.rich_text[0].plain_text,
-      annotation: page.properties.Annotation.rich_text[0].plain_text,
-      timestamp: page.properties.Timestamp.date.start,
-      tool: page.properties.Tool.rich_text[0].plain_text,
+      action: getTextContent(page.properties?.Action?.title),
+      reasoning: getTextContent(page.properties?.Reasoning?.rich_text),
+      risks: getTextContent(page.properties?.Risks?.rich_text),
+      riskLevel: page.properties?.Risk?.select?.name || 'low',
+      status: page.properties?.Status?.select?.name || 'pending_approval',
+      conversationId: getTextContent(page.properties?.ConversationId?.rich_text),
+      annotation: getTextContent(page.properties?.Annotation?.rich_text),
+      timestamp: page.properties?.Timestamp?.date?.start || '',
+      tool: getTextContent(page.properties?.Tool?.rich_text),
     }));
 
-    // Automatically reject any decisions that have been pending
     await Promise.all(
       staleDecisions.map((decision) =>
-        client.pages.update({
+        callNotionTool('API-patch-page', {
           page_id: decision.pageId,
           properties: {
             Status: { select: { name: 'rejected' } },

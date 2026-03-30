@@ -30,6 +30,8 @@ The first agent — **Bob** — is a paranoid, audit-log-obsessed assistant powe
 This is v0.1. It's early and messy, but we're (I'm) making it work!
 ```
 
+> ⚠️ **Not production-ready:** OpenFiend is an early-stage project and has not been tested thoroughly enough for production use yet.
+
 <br>
 
 ## `> QUICK START`

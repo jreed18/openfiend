@@ -1,9 +1,9 @@
-import { getNotionClient, getDataSourceId } from '../client';
+﻿import { callNotionTool, getDataSourceId } from '../mcpClient';
 import { getConfigValue } from '../setup';
 
 /**
  * TASKS SECTION - Bob's async task queue stored in Notion
- * 
+ *
  * Users leave tasks in Notion, Bob picks them up and completes them.
  */
 
@@ -22,6 +22,11 @@ export interface NotionTask {
     timestampCompleted: string;
 }
 
+function getTextContent(textNodes: any[] | undefined): string {
+    if (!Array.isArray(textNodes) || textNodes.length === 0) return '';
+    return textNodes[0]?.plain_text || textNodes[0]?.text?.content || '';
+}
+
 export async function writeTask(data: {
     description: string;
     priority: TaskPriority;
@@ -30,15 +35,14 @@ export async function writeTask(data: {
     scheduledFor?: string;
 }): Promise<string | null> {
     try {
-        const client = getNotionClient();
         const tasksDbId = getConfigValue('tasks_db_id');
 
-        if (!client || !tasksDbId) {
-            console.error('[Notion] Notion client or tasks database not configured. Skipping task write.');
+        if (!tasksDbId) {
+            console.error('[Notion] Tasks database not configured. Skipping task write.');
             return null;
         }
 
-        const notionResponse = await client.pages.create({
+        const notionResponse = await callNotionTool<any>('API-post-page', {
             parent: {
                 type: 'database_id',
                 database_id: tasksDbId,
@@ -55,7 +59,7 @@ export async function writeTask(data: {
             }
         });
 
-        if (!notionResponse) return null;
+        if (!notionResponse?.id) return null;
 
         console.log('[Notion] Successfully wrote task to Notion with page ID:', notionResponse.id);
         return notionResponse.id;
@@ -67,11 +71,10 @@ export async function writeTask(data: {
 
 export async function readPendingTasks(): Promise<NotionTask[]> {
     try {
-        const client = getNotionClient();
         const tasksDbId = getConfigValue('tasks_db_id');
 
-        if (!client || !tasksDbId) {
-            console.error('[Notion] Notion client or tasks database not configured. Skipping task read.');
+        if (!tasksDbId) {
+            console.error('[Notion] Tasks database not configured. Skipping task read.');
             return [];
         }
 
@@ -82,7 +85,7 @@ export async function readPendingTasks(): Promise<NotionTask[]> {
             return [];
         }
 
-        const notionResult = await client.dataSources.query({
+        const notionResult = await callNotionTool<any>('API-query-data-source', {
             data_source_id: dataSourceId,
             filter: {
                 property: 'Status',
@@ -90,23 +93,24 @@ export async function readPendingTasks(): Promise<NotionTask[]> {
             },
             sorts: [{
                 property: 'Priority',
-                direction: 'descending', // high priority first
+                direction: 'descending',
             }],
         });
 
-        if (!notionResult || !notionResult.results) return [];
+        const results = notionResult?.results || [];
+        if (!Array.isArray(results)) return [];
 
-        console.log('[Notion] Successfully read pending tasks from Notion. Number of tasks:', notionResult.results.length);
+        console.log('[Notion] Successfully read pending tasks from Notion. Number of tasks:', results.length);
 
-        return notionResult.results.map((page: any) => ({
+        return results.map((page: any) => ({
             pageId: page.id,
-            description: page.properties.Description?.title?.[0]?.text?.content || '',
-            priority: page.properties.Priority?.select?.name || 'low',
-            status: page.properties.Status?.select?.name || 'pending',
-            result: page.properties.Result?.rich_text?.[0]?.text?.content || '',
-            scheduledFor: page.properties.ScheduledFor?.date?.start || '',
-            timestampStarted: page.properties.TimestampStarted?.date?.start || '',
-            timestampCompleted: page.properties.TimestampCompleted?.date?.start || '',
+            description: getTextContent(page.properties?.Description?.title),
+            priority: page.properties?.Priority?.select?.name || 'low',
+            status: page.properties?.Status?.select?.name || 'pending',
+            result: getTextContent(page.properties?.Result?.rich_text),
+            scheduledFor: page.properties?.ScheduledFor?.date?.start || '',
+            timestampStarted: page.properties?.TimestampStarted?.date?.start || '',
+            timestampCompleted: page.properties?.TimestampCompleted?.date?.start || '',
         }));
 
     } catch (error) {
@@ -121,9 +125,6 @@ export async function updateTaskStatus(
     result?: string,
 ): Promise<boolean> {
     try {
-        const client = getNotionClient();
-        if (!client) return false;
-
         const properties: Record<string, any> = {
             Status: { select: { name: status } },
         };
@@ -140,7 +141,7 @@ export async function updateTaskStatus(
             properties.TimestampCompleted = { date: { start: new Date().toISOString() } };
         }
 
-        await client.pages.update({
+        await callNotionTool('API-patch-page', {
             page_id: pageId,
             properties,
         });
@@ -155,11 +156,10 @@ export async function updateTaskStatus(
 
 export async function recoverStaleTasks(): Promise<NotionTask[]> {
     try {
-        const client = getNotionClient();
         const tasksDbId = getConfigValue('tasks_db_id');
 
-        if (!client || !tasksDbId) {
-            console.error('[Notion] Notion client or tasks database not configured. Skipping stale task recovery.');
+        if (!tasksDbId) {
+            console.error('[Notion] Tasks database not configured. Skipping stale task recovery.');
             return [];
         }
 
@@ -169,7 +169,7 @@ export async function recoverStaleTasks(): Promise<NotionTask[]> {
             return [];
         }
 
-        const notionResult = await client.dataSources.query({
+        const notionResult = await callNotionTool<any>('API-query-data-source', {
             data_source_id: dataSourceId,
             filter: {
                 property: 'Status',
@@ -177,24 +177,25 @@ export async function recoverStaleTasks(): Promise<NotionTask[]> {
             },
         });
 
-        if (!notionResult || !notionResult.results || notionResult.results.length === 0) {
+        const results = notionResult?.results || [];
+        if (!Array.isArray(results) || results.length === 0) {
             return [];
         }
 
-        const staleTasks: NotionTask[] = notionResult.results.map((page: any) => ({
+        const staleTasks: NotionTask[] = results.map((page: any) => ({
             pageId: page.id,
-            description: page.properties.Description?.title?.[0]?.text?.content || '',
-            priority: page.properties.Priority?.select?.name || 'low',
+            description: getTextContent(page.properties?.Description?.title),
+            priority: page.properties?.Priority?.select?.name || 'low',
             status: 'pending',
-            result: page.properties.Result?.rich_text?.[0]?.text?.content || '',
-            scheduledFor: page.properties.ScheduledFor?.date?.start || '',
-            timestampStarted: page.properties.TimestampStarted?.date?.start || '',
+            result: getTextContent(page.properties?.Result?.rich_text),
+            scheduledFor: page.properties?.ScheduledFor?.date?.start || '',
+            timestampStarted: page.properties?.TimestampStarted?.date?.start || '',
             timestampCompleted: '',
         }));
 
         await Promise.all(
             staleTasks.map((task) =>
-                client.pages.update({
+                callNotionTool('API-patch-page', {
                     page_id: task.pageId,
                     properties: {
                         Status: { select: { name: 'pending' } },
