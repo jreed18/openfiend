@@ -50,7 +50,7 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 const previousStatus = statusCache.get(pageId);
                 statusCache.set(pageId, currentStatus);
 
-                // First time seeing this decision â€” cache and skip
+                // First time seeing this decision  cache and skip
                 if (!previousStatus) continue;
 
                 if (previousStatus === 'pending_approval'
@@ -114,7 +114,7 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 console.log(`[Notion Poller] Picked up task ${task.pageId} with priority ${task.priority}`);
                 await updateTaskStatus(task.pageId, 'in_progress');
 
-                // Process the task directly on the backend â€” no frontend round-trip
+                // Process the task directly on the backend  no frontend round-trip
                 const conversationId = uuidv4();
                                 const taskContent = `[SYSTEM TASK] Handle this Notion task now.
                                     Task: ${task.description}
@@ -153,10 +153,10 @@ export function startNotionPolling(broadcastToClients: BroadcastToClients, getFi
                 // Get a WS client for tool creation (needed for permission requests)
                 const wsClient = getFirstClient();
                 if (!wsClient) {
-                    console.warn('[Notion Poller] No connected WS client â€” processing task without permission tools');
+                    console.warn('[Notion Poller] No connected WS client  processing task without permission tools');
                 }
 
-                // Create tools (pass a dummy WS if none connected â€” permission tools will fail gracefully)
+                // Create tools (pass a dummy WS if none connected  permission tools will fail gracefully)
                 const tools = wsClient ? createTools(wsClient, conversationId) : {};
 
                 try {
